@@ -1,0 +1,17 @@
+pub fn Layout(ctx: zx.LayoutContext, children: zx.Component) zx.Component {
+    return (
+        <html @allocator={ctx.arena} lang="en-US">
+            <head>
+                <title>Ziex</title>
+                <link rel="stylesheet" href="/assets/style.css" />
+            </head>
+
+            <body>
+                <h1>Ziex</h1>
+                {children}
+            </body>
+        </html>
+    );
+}
+
+const zx = @import("zx");
