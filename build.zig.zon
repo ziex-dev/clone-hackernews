@@ -1,7 +1,7 @@
 .{
-    .name = .zx_app,
+    .name = .hackernews,
     .version = "0.0.0",
-    .fingerprint = 0x77989223bd4e92d3,
+    .fingerprint = 0x5acb6d58a115efcf,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .zx = .{

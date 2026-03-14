@@ -1,0 +1,207 @@
+pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+    const id_opt = ctx.request.getParam("id");
+    if (id_opt == null) {
+        return (<div @allocator={ctx.arena}>Not Found</div>);
+    }
+    const id_str = id_opt.?;
+
+    const id = std.fmt.parseInt(usize, id_str, 10) catch {
+        return (<div @allocator={ctx.arena}>Invalid ID</div>);
+    };
+
+    const s = try store.get(ctx.allocator);
+
+    var story: ?store.Story = null;
+    for (s.stories.items) |st| {
+        if (st.id == id) {
+            story = st;
+            break;
+        }
+    }
+
+    if (story == null) {
+        return (<div @allocator={ctx.arena}>Not Found</div>);
+    }
+
+    if (ctx.request.method == .POST) try handleAddComment(ctx);
+    const item = story.?;
+
+    return (
+        <fragment @allocator={ctx.arena}>
+            <table border="0">
+                <tr class="athing" id=`{item.id}`>
+                    <td valign="top" class="votelinks">
+                        <center>
+                            <a id=`up_{item.id}` href=`/vote?id={item.id}&how=up`>
+                                <div class="votearrow" title="upvote"></div>
+                            </a>
+                        </center>
+                    </td>
+                    <td class="title">
+                        <span class="titleline">
+                            {if (item.url) |u| (
+                                <a href=`{u}`>{item.title}</a>
+                            ) else (
+                                <a href=`/item/{item.id}`>{item.title}</a>
+                            )}
+                            {if (item.url) |u| (
+                                <span class="sitebit comhead"> (<a href=`/from?site={getHost(u)}`><span class="sitestr">{getHost(u)}</span></a>)</span>
+                            )}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="1"></td>
+                    <td class="subtext">
+                        <span class="score" id=`score_{item.id}`>{item.score} points</span> by 
+                        <a href=`/user?id={item.author}` class="hnuser">{item.author}</a> 
+                        <span class="age" title=`{item.time}`>
+                            <a href=`/item/{item.id}`>
+                                {" "}{timeAgo(item.time)}
+                            </a>
+                        </span> | 
+                        <a href=`/hide?id={item.id}`>hide</a> | 
+                        <a href=`/item/{item.id}`>{if (item.comment_count == 0) ("discuss") else (item.comment_count)} comments</a>
+                    </td>
+                </tr>
+                <tr style="height:10px"></tr>
+                <tr>
+                    <td colspan="1"></td>
+                    <td>
+                        {if (item.text) |t| (
+                            <div style="font-size: 14px; margin-bottom: 20px;">{t}</div>
+                        )}
+                        <form method="POST">
+                            <input type="hidden" name="story_id" value={item.id} />
+                            <textarea name="text" rows="6" cols="60" style="font-family: inherit;"></textarea>
+                            <br />
+                            <br />
+                            <input type="submit" value="add comment" />
+                        </form>
+                    </td>
+                </tr>
+            </table>
+
+            <br />
+            <br />
+
+            <table border="0" class="comment-tree">
+                {for (getCommentsForStory(ctx.arena, s, item.id)) |comment| (
+                    <CommentComponent comment={comment} store={s} indent={0} />
+                )}
+            </table>
+        </fragment>
+    );
+}
+
+pub fn handleAddComment(ctx: zx.PageCtx(void, AuthState)) !void {
+    const form = ctx.request.formData();
+    const story_id_str = form.get("story_id") orelse return;
+    const story_id = std.fmt.parseInt(usize, story_id_str, 10) catch return;
+    const text = form.get("text") orelse return;
+
+    if (text.len == 0) return;
+
+    const s = try store.get(ctx.allocator);
+    const username = ctx.state.username orelse "guest";
+    _ = try s.addComment(story_id, null, username, text);
+
+    ctx.response.setHeader("Location", ctx.request.url);
+    ctx.response.setStatus(.found);
+}
+
+fn getCommentsForStory(allocator: std.mem.Allocator, s: *store.Store, story_id: usize) []store.Comment {
+    var list = std.ArrayListUnmanaged(store.Comment){};
+    var it = s.comments.iterator();
+    while (it.next()) |entry| {
+        if (entry.value_ptr.story_id == story_id and entry.value_ptr.parent_id == null) {
+            list.append(allocator, entry.value_ptr.*) catch {};
+        }
+    }
+    return list.toOwnedSlice(allocator) catch &[_]store.Comment{};
+}
+
+pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: store.Comment, store: *store.Store, indent: usize }) zx.Component {
+    return (
+        <fragment @{allocator}>
+            <tr class="athing comtr">
+                <td>
+                    <table border="0">
+                        <tr>
+                            <td class="ind">
+                                <img src="https://news.ycombinator.com/s.gif" height="1" width=`{props.indent * 40}` />
+                            </td>
+                            <td valign="top" class="votelinks">
+                                <center>
+                                    <a id=`up_{props.comment.id}` href=`/vote?id={props.comment.id}&how=up`>
+                                        <div class="votearrow" title="upvote"></div>
+                                    </a>
+                                </center>
+                            </td>
+                            <td class="default">
+                                <div style="margin-top:2px; margin-bottom:-10px;">
+                                    <span class="comhead">
+                                        <a href=`/user?id={props.comment.author}` class="hnuser">{props.comment.author}</a> 
+                                        <span class="age" title=`{props.comment.time}`><a href=`/item?id={props.comment.id}`>{" "}{timeAgo(props.comment.time)}</a></span>
+                                        <span class="navs">
+                                            [-]
+                                        </span>
+                                    </span>
+                                </div>
+
+                                <br />
+                                <div class="comment">
+                                    <span class="commtext c00">{props.comment.text}</span>
+                                    // TODO: Implement reply functionality
+                                    <div class="reply" style="display: none;">
+                                        <p>
+                                            <font size="1">
+                                                <u><a href=`/reply?id={props.comment.id}`>reply</a></u>
+                                            </font>
+                                        </p>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            {for (props.comment.replies.items) |reply_id| (
+                if (props.store.comments.get(reply_id)) |reply| (
+                    <CommentComponent comment={reply} store={props.store} indent={props.indent + 1} />
+                )
+            )}
+        </fragment>
+    );
+}
+
+fn getHost(url: []const u8) []const u8 {
+    var rest = url;
+    if (std.mem.startsWith(u8, url, "https://")) {
+        rest = url[8..];
+    } else if (std.mem.startsWith(u8, url, "http://")) {
+        rest = url[7..];
+    }
+
+    if (std.mem.indexOfScalar(u8, rest, '/')) |idx| return rest[0..idx];
+    return rest;
+}
+
+fn timeAgo(timestamp: i64) []const u8 {
+    const now = std.time.timestamp();
+    const diff = @max(0, now - timestamp);
+
+    if (diff < 60) return "just now";
+    if (diff < 3600) return "minutes ago";
+    if (diff < 86400) return "hours ago";
+    return "days ago";
+}
+
+pub const options = zx.PageOptions{
+    .methods = &.{ .GET, .POST },
+};
+
+const AuthState = @import("../../proxy.zig").AuthState;
+const std = @import("std");
+const zx = @import("zx");
+const store = @import("../../../data.zig");

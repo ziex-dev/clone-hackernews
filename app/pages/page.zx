@@ -1,28 +1,74 @@
-pub fn Page(ctx: zx.PageContext) !zx.Component {
-    const query = ctx.request.searchParams;
-
-    if (query.get("reset")) |_|
-        count = 0
-    else if (query.get("increment")) |_|
-        count += 1
-    else if (query.get("decrement")) |_|
-        count -= 1
-    else
-        count += 1;
+pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+    const s = try store.get(ctx.allocator);
 
     return (
-        <main @allocator={ctx.arena}>
-            <p>Ziex is a framework for building web applications with Zig.</p>
-            <a href={zx.info.homepage} target="_blank">See Ziex Docs →</a>
-            <br />
-            <CounterComponent @rendering={.client} count={count} />
-            <br />
-            <hr />
-            <a href="/about">Navigate to About Page</a>
-        </main>
+        <table @allocator={ctx.arena} border="0" cellpadding="0" cellspacing="0">
+            {for (s.stories.items, 0..) |item, i| (
+                <fragment>
+                    <tr class="athing" id=`{item.id}`>
+                        <td align="right" valign="top" class="title"><span class="rank">{i + 1}.</span></td>
+                        <td valign="top" class="votelinks">
+                            <center>
+                                <a id=`up_{item.id}` href=`/vote?id={item.id}&how=up`>
+                                    <div class="votearrow" title="upvote"></div>
+                                </a>
+                            </center>
+                        </td>
+                        <td class="title">
+                            <span class="titleline">
+                                {if (item.url) |u| (
+                                    <a href=`{u}`>{item.title}</a>
+                                ) else (
+                                    <a href=`/item/{item.id}`>{item.title}</a>
+                                )}
+                                {if (item.url) |u| (
+                                    <span class="sitebit comhead"> (<a href=`/from?site={getHost(u)}`><span class="sitestr">{getHost(u)}</span></a>)</span>
+                                )}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"></td>
+                        <td class="subtext">
+                            <span class="score" id=`score_{item.id}`>{item.score} points</span> by <a href=`/user?id={item.author}` class="hnuser">{item.author}</a> <span class="age" title=`{item.time}`><a href=`/item/{item.id}`>{" "}{timeAgo(item.time)}</a></span> | <a href=`/hide?id={item.id}`>hide</a> | <a href=`/item/{item.id}`>{if (item.comment_count == 0) ("discuss") else (item.comment_count)} comments</a>
+                        </td>
+                    </tr>
+                    <tr class="spacer" style="height:5px"></tr>
+                </fragment>
+            )}
+            <tr class="spacer" style="height:10px"></tr>
+            <tr>
+                <td colspan="2"></td>
+                <td class="title"><a href="/news?p=2" class="morelink" rel="next">More</a></td>
+            </tr>
+        </table>
     );
 }
-var count: i128 = 0;
 
+fn getHost(url: []const u8) []const u8 {
+    var rest = url;
+    if (std.mem.startsWith(u8, url, "https://")) {
+        rest = url[8..];
+    } else if (std.mem.startsWith(u8, url, "http://")) {
+        rest = url[7..];
+    }
+
+    if (std.mem.indexOfScalar(u8, rest, '/')) |idx| return rest[0..idx];
+    return rest;
+}
+
+fn timeAgo(timestamp: i64) []const u8 {
+    const now = std.time.timestamp();
+    const diff = @max(0, now - timestamp);
+
+    if (diff < 60) return "just now";
+    if (diff < 3600) return "minutes ago";
+    if (diff < 86400) return "hours ago";
+    return "days ago";
+}
+
+const AuthState = @import("proxy.zig").AuthState;
+const store = @import("../data.zig");
+
+const std = @import("std");
 const zx = @import("zx");
-pub const CounterComponent = @import("./client.zig").CounterComponent;

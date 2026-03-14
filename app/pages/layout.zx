@@ -1,17 +1,90 @@
-pub fn Layout(ctx: zx.LayoutContext, children: zx.Component) zx.Component {
+pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Component {
+    const auth = ctx.state;
+
     return (
-        <html @allocator={ctx.arena} lang="en-US">
+        <html @allocator={ctx.arena} lang="en">
             <head>
-                <title>Ziex</title>
+                <title>Hacker News Clone</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <link rel="icon" href="https://news.ycombinator.com/y18.svg" />
                 <link rel="stylesheet" href="/assets/style.css" />
             </head>
 
-            <body>
-                <h1>Ziex</h1>
-                {children}
+            <body style="margin:0;">
+                <center>
+                    <table id="hnmain" border="0" cellpadding="0" cellspacing="0" width="85%" bgcolor="#f6f6ef">
+                        <tr>
+                            <td bgcolor="#ff6600">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="padding:2px">
+                                    <tr>
+                                        <td style="width:18px;padding-right:4px">
+                                            <a href="/">
+                                                <img src="https://news.ycombinator.com/y18.svg" width="18" height="18" style="border:1px white solid; display:block" />
+                                            </a>
+                                        </td>
+                                        <td style="line-height:12pt; height:10px;">
+                                            <span class="pagetop">
+                                                <b class="hnname"><a href="/">Hacker News</a></b>
+                                                <a href="/new">new</a> | 
+                                                <a href="/past">past</a> | 
+                                                <a href="/comments">comments</a> | 
+                                                <a href="/ask">ask</a> | 
+                                                <a href="/show">show</a> | 
+                                                <a href="/jobs">jobs</a> | 
+                                                <a href="/submit">submit</a>
+                                            </span>
+                                        </td>
+                                        <td style="text-align:right;padding-right:4px;">
+                                            <span class="pagetop">
+                                                {if (auth.is_authenticated) (
+                                                    <a href="/login">{auth.username}</a>
+                                                ) else (
+                                                    <a href="/login">login</a>
+                                                )}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr style="height:10px"></tr>
+                        <tr>
+                            <td>
+                                {children}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <img src="https://news.ycombinator.com/s.gif" height="10" width="0" />
+                                <table width="100%" cellspacing="0" cellpadding="1">
+                                    <tr><td bgcolor="#ff6600"></td></tr>
+                                </table>
+                                <br />
+                                <center>
+                                    <span class="yclinks">
+                                        <a href="/guidelines">Guidelines</a> | 
+                                        <a href="/faq">FAQ</a> | 
+                                        <a href="/lists">Lists</a> | 
+                                        <a href="/api">API</a> | 
+                                        <a href="/security">Security</a> | 
+                                        <a href="/legal">Legal</a> | 
+                                        <a href="/apply">Apply to YC</a> | 
+                                        <a href="/contact">Contact</a>
+                                    </span>
+                                    <br />
+                                    <br />
+                                    <form method="get" action="//hn.algolia.com/">
+                                        Search: <input type="text" name="q" size="17" autocorrect="off" spellcheck="false" autocapitalize="off" autocomplete="off" />
+                                    </form>
+                                </center>
+                            </td>
+                        </tr>
+                    </table>
+                </center>
             </body>
         </html>
     );
 }
 
+const AuthState = @import("proxy.zig").AuthState;
 const zx = @import("zx");

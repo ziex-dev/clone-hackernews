@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) !void {
 
     // --- ZX App Executable ---
     const app_exe = b.addExecutable(.{
-        .name = "zx_app",
+        .name = "hackernews",
         .root_module = b.createModule(.{
             .root_source_file = b.path("app/main.zig"),
             .target = target,

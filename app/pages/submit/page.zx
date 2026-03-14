@@ -1,0 +1,76 @@
+pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+    handleAction(ctx);
+
+    return (
+        <table @allocator={ctx.arena} border="0" cellpadding="0" cellspacing="0">
+            <tr>
+                <td>
+                    <form method="POST">
+                        <table border="0">
+                            <tr style="height:2px"></tr>
+                            <tr>
+                                <td>title</td>
+                                <td><input type="text" name="title" size="50" required /></td>
+                            </tr>
+                            <tr>
+                                <td>url</td>
+                                <td><input type="text" name="url" size="50" /></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td><b>or</b></td>
+                            </tr>
+                            <tr>
+                                <td valign="top">text</td>
+                                <td><textarea name="text" rows="4" cols="49"></textarea></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td><input type="submit" value="submit" /></td>
+                            </tr>
+                            <tr style="height:20px"></tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    Leave url blank to submit a question for discussion. If there is no url, text will appear at the top of the thread.
+                                    <br /><br />
+                                    You can also submit via <a href="/bookmarklet" rel="nofollow"><u>bookmarklet</u></a>.
+                                </td>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+            </tr>
+        </table>
+    );
+}
+
+fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
+    if (ctx.request.method != .POST) return;
+
+    const fd = ctx.request.formData();
+    const title = fd.get("title") orelse return;
+    const url = fd.get("url");
+    const text = fd.get("text");
+
+    const s = store.get(ctx.allocator) catch return;
+    const username = ctx.state.username orelse "guest";
+
+    _ = s.addStory(title, if (url != null and url.?.len > 0) url else null, if (text != null and text.?.len > 0) text else null, username) catch return;
+
+    ctx.response.setHeader("Location", "/");
+    ctx.response.setStatus(.found);
+}
+
+pub const options = zx.PageOptions{
+    .methods = &.{ .GET, .POST },
+};
+
+const AuthState = @import("../proxy.zig").AuthState;
+const zx = @import("zx");
+const store = @import("../../data.zig");
+const std = @import("std");

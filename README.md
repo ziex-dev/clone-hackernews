@@ -1,53 +1,13 @@
-# Ziex App
+# Ziex App - Hacker News Clone
 
->This is a starter template for building web applications with [Ziex](https://ziex.dev), a full-stack web framework for Zig.
-
-**[Documentation →](https://ziex.dev)**
-
----
-
-## Getting Started
-
-### 1. Install ZX CLI
-
-#### Linux/macOS
-```bash
-curl -fsSL https://ziex.dev/install | bash
-```
-
-#### Windows
-```powershell
-powershell -c "irm ziex.dev/install.ps1 | iex"
-```
-
-### 2. Install Zig
-```bash
-brew install zig # macOS
-winget install -e --id zig.zig # Windows
-```
-[_Other platforms →_](https://ziglang.org/learn/getting-started/)
+>This is minimal hackernews clone built with [Ziex](https://ziex.dev). 
 
 
----
-
-## Project
-
-```
-├── app/
-│   ├── assets/         # Static assets (CSS, images, etc)
-│   ├── main.zig        # Zig entrypoint
-│   ├── pages/          # Pages (Zig/ZX)
-│   │   ├── layout.zx   # Root layout
-│   │   ├── page.zx     # Home page
-│   │   ├── client.zx   # Client side counter component
-│   │   └── ...
-│   └── public/         # Public static files (favicon, etc)
-├── build.zig           # Zig build script
-├── build.zig.zon       # Zig package manager config
-└── README.md           # Project info
-```
-
----
+Here are the features implemented in this clone:
+- [x] Home page with stories
+- [x] Story details page with comments
+- [x] User profile page
+- [x] Login/logout functionality
 
 ## Usage
 
@@ -87,13 +47,9 @@ All ZX CLI commands are available under `zig build zx -- [command]`. For example
 zig build zx -- fmt .
 ```
 
----
-
 ## Contributing
 
-Contributions are welcome! Feel free to open issues or pull requests. For feature requests, bug reports, or questions, see the [Ziex Repo](https://github.com/nurulhudaapon/ziex).
-
-
+Contributions are welcome! Feel free to open issues or pull requests. For feature requests, bug reports, or questions, see the [Ziex Repo](https://github.com/ziex-dev/ziex).
 
 ## Links
 
