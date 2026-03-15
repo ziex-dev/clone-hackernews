@@ -18,7 +18,10 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
     try s.vote(username, id);
 
     const referer = ctx.request.headers.get("referer") orelse "/";
-    ctx.response.setHeader("Location", referer);
+    const separator = if (std.mem.indexOfScalar(u8, referer, '?') == null) "?" else "&";
+    const redirect_url = try std.fmt.allocPrint(ctx.arena, "{s}{s}t={d}", .{ referer, separator, std.time.timestamp() });
+
+    ctx.response.setHeader("Location", redirect_url);
     ctx.response.setStatus(.found);
     return (<div>Redirecting...</div>);
 }

@@ -111,7 +111,8 @@ pub fn handleAddComment(ctx: zx.PageCtx(void, AuthState)) !void {
     const username = ctx.state.username orelse "guest";
     _ = try s.addComment(story_id, null, username, text);
 
-    ctx.response.setHeader("Location", ctx.request.url);
+    const redirect_url = try std.fmt.allocPrint(ctx.arena, "/item/{d}?t={d}", .{ story_id, std.time.timestamp() });
+    ctx.response.setHeader("Location", redirect_url);
     ctx.response.setStatus(.found);
 }
 
