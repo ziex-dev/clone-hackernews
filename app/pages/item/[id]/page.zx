@@ -25,6 +25,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 
     if (ctx.request.method == .POST) try handleAddComment(ctx);
     const item = story.?;
+    const comments = try getCommentsForStory(ctx.arena, s, item.id);
 
     return (
         <fragment @allocator={ctx.arena}>
@@ -90,7 +91,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
             <br />
 
             <table border="0" class="comment-tree">
-                {for (getCommentsForStory(ctx.arena, s, item.id)) |comment| (
+                {for (comments) |comment| (
                     <CommentComponent comment={comment} store={s} indent={0} username={ctx.state.username} />
                 )}
             </table>
@@ -114,18 +115,30 @@ pub fn handleAddComment(ctx: zx.PageCtx(void, AuthState)) !void {
     ctx.response.setStatus(.found);
 }
 
-fn getCommentsForStory(allocator: std.mem.Allocator, s: *store.Store, story_id: usize) []store.Comment {
+fn getCommentsForStory(allocator: std.mem.Allocator, s: *store.Store, story_id: usize) ![]store.Comment {
     var list = std.ArrayListUnmanaged(store.Comment){};
     var it = s.comments.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.story_id == story_id and entry.value_ptr.parent_id == null) {
-            list.append(allocator, entry.value_ptr.*) catch {};
+            try list.append(allocator, entry.value_ptr.*);
         }
     }
-    return list.toOwnedSlice(allocator) catch &[_]store.Comment{};
+    const result = try list.toOwnedSlice(allocator);
+    sortComments(result);
+    return result;
 }
 
-pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: store.Comment, store: *store.Store, indent: usize, username: ?[]const u8 }) zx.Component {
+fn sortComments(comments: []store.Comment) void {
+    std.mem.sort(store.Comment, comments, {}, struct {
+        fn lessThan(_: void, a: store.Comment, b: store.Comment) bool {
+            if (a.score != b.score) return a.score > b.score;
+            return a.time > b.time; // Newest first for same score
+        }
+    }.lessThan);
+}
+
+pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: store.Comment, store: *store.Store, indent: usize, username: ?[]const u8 }) !zx.Component {
+    const sorted_replies = try getSortedReplies(allocator, props.store, props.comment.replies);
     return (
         <fragment @{allocator}>
             <tr class="athing comtr">
@@ -173,13 +186,23 @@ pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: s
                     </table>
                 </td>
             </tr>
-            {for (props.comment.replies) |reply_id| (
-                if (props.store.comments.get(reply_id)) |reply| (
-                    <CommentComponent comment={reply} store={props.store} indent={props.indent + 1} username={props.username} />
-                )
+            {for (sorted_replies) |reply| (
+                <CommentComponent comment={reply} store={props.store} indent={props.indent + 1} username={props.username} />
             )}
         </fragment>
     );
+}
+
+fn getSortedReplies(allocator: std.mem.Allocator, s: *store.Store, reply_ids: []usize) ![]store.Comment {
+    var list = std.ArrayListUnmanaged(store.Comment){};
+    for (reply_ids) |id| {
+        if (s.comments.get(id)) |c| {
+            try list.append(allocator, c);
+        }
+    }
+    const res = try list.toOwnedSlice(allocator);
+    sortComments(res);
+    return res;
 }
 
 fn getHost(url: []const u8) []const u8 {
