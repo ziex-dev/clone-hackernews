@@ -139,6 +139,18 @@ pub const Store = struct {
         return self.users.get(username);
     }
 
+    pub fn searchStories(self: *Store, allocator: std.mem.Allocator, query: []const u8) ![]Story {
+        var list = std.ArrayListUnmanaged(Story){};
+        for (self.stories.items) |item| {
+            const in_title = std.ascii.indexOfIgnoreCase(item.title, query) != null;
+            const in_text = if (item.text) |t| std.ascii.indexOfIgnoreCase(t, query) != null else false;
+            if (in_title or in_text) {
+                try list.append(self.allocator, item);
+            }
+        }
+        return list.toOwnedSlice(allocator);
+    }
+
     fn saveStories(self: *Store) !void {
         const json = try std.json.Stringify.valueAlloc(self.allocator, self.stories.items, .{});
         try zx.kv.put("stories", json, .{});

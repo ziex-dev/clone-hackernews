@@ -45,7 +45,7 @@ pub fn StoryList(allocator: std.mem.Allocator, props: struct { stories: []const 
                     <tr class="spacer" style="height:10px"></tr>
                     <tr>
                         <td colspan="2"></td>
-                        <td class="title"><a href=`{props.base_path}?p={next_page}` class="morelink" rel="next">More</a></td>
+                        <td class="title"><a href=`{props.base_path}{if (std.mem.indexOfScalar(u8, props.base_path, '?') != null) ("&") else ("?")}p={next_page}` class="morelink" rel="next">More</a></td>
                     </tr>
                 </fragment>
             )}
