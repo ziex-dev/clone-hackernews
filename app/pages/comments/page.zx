@@ -1,0 +1,98 @@
+pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+    const s = try store.get(ctx.allocator);
+
+    const p_str = ctx.request.searchParams.get("p") orelse "1";
+    const page = std.fmt.parseInt(usize, p_str, 10) catch 1;
+    const page_size = 30;
+
+    // Get all comments and sort by newest
+    var comments_list = try ctx.arena.alloc(store.Comment, s.comments.count());
+    var count: usize = 0;
+    var it = s.comments.iterator();
+    while (it.next()) |entry| {
+        comments_list[count] = entry.value_ptr.*;
+        count += 1;
+    }
+
+    std.mem.sort(store.Comment, comments_list, {}, struct {
+        fn lessThan(_: void, a: store.Comment, b: store.Comment) bool {
+            return a.time > b.time; // Newest first
+        }
+    }.lessThan);
+
+    const start = (page - 1) * page_size;
+    const end = @min(comments_list.len, start + page_size);
+    const comments = if (start < comments_list.len) comments_list[start..end] else &[_]store.Comment{};
+
+    const has_more = comments_list.len > end;
+    const next_page = page + 1;
+
+    return (
+        <table @allocator={ctx.arena} border="0" cellpadding="0" cellspacing="0">
+            {for (comments) |comment| (
+                <fragment>
+                    <tr class="athing">
+                        <td class="votelinks" valign="top">
+                            <center>
+                                {if (ctx.state.is_authenticated and !s.hasVoted(ctx.state.username.?, comment.id)) (
+                                    <a id=`up_{comment.id}` href=`/vote?id={comment.id}&how=up`>
+                                        <div class="votearrow" title="upvote"></div>
+                                    </a>
+                                ) else (
+                                    <div style="width: 10px; height: 10px;"></div>
+                                )}
+                            </center>
+                        </td>
+                        <td class="default">
+                            <div style="margin-top:2px; margin-bottom:-10px;">
+                                <span class="comhead">
+                                    <a href=`/user?id={comment.author}` class="hnuser">{comment.author}</a> 
+                                    {" "}{timeAgo(comment.time)} | 
+                                    <a href=`/item/{comment.id}`>link</a> | on: 
+                                    {if (findStory(s.stories.items, comment.story_id)) |st| (
+                                        <a href=`/item/{st.id}`>{st.title}</a>
+                                    ) else (
+                                        <span>unknown story</span>
+                                    )}
+                                </span>
+                            </div>
+                            <br />
+                            <div class="comment">
+                                <span class="commtext c00">{comment.text}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="spacer" style="height:15px"></tr>
+                </fragment>
+            )}
+            {if (has_more) (
+                <fragment>
+                    <tr class="spacer" style="height:10px"></tr>
+                    <tr>
+                        <td colspan="1"></td>
+                        <td class="title"><a href=`/comments?p={next_page}` class="morelink" rel="next">More</a></td>
+                    </tr>
+                </fragment>
+            )}
+        </table>
+    );
+}
+
+fn findStory(stories: []store.Story, id: usize) ?store.Story {
+    for (stories) |s| if (s.id == id) return s;
+    return null;
+}
+
+fn timeAgo(timestamp: i64) []const u8 {
+    const now = std.time.timestamp();
+    const diff = @max(0, now - timestamp);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return "minutes ago";
+    if (diff < 86400) return "hours ago";
+    return "days ago";
+}
+
+const AuthState = @import("../proxy.zig").AuthState;
+const store = @import("../../data.zig");
+const std = @import("std");
+const zx = @import("zx");
