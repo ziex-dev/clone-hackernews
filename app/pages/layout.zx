@@ -10,7 +10,7 @@ pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Com
                 <link rel="stylesheet" href="/assets/style.css" />
             </head>
 
-            <body style="margin:0;">
+            <body>
                 <center>
                     <table id="hnmain" border="0" cellpadding="0" cellspacing="0" width="85%" bgcolor="#f6f6ef">
                         <tr>

@@ -1,0 +1,83 @@
+pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+    const id_opt = ctx.request.searchParams.get("id");
+    if (id_opt == null) {
+        return (<div @allocator={ctx.arena}>Not Found</div>);
+    }
+    const id_str = id_opt.?;
+    const id = std.fmt.parseInt(usize, id_str, 10) catch {
+        return (<div @allocator={ctx.arena}>Invalid ID</div>);
+    };
+
+    const s = try store.get(ctx.allocator);
+    const comment = s.comments.get(id) orelse {
+        return (<div @allocator={ctx.arena}>Comment Not Found</div>);
+    };
+
+    if (ctx.request.method == .POST) {
+        const form = ctx.request.formData();
+        const text = form.get("text") orelse "";
+        if (text.len > 0) {
+            const username = ctx.state.username orelse "guest";
+            _ = try s.addComment(comment.story_id, comment.id, username, text);
+
+            const redirect_url = try std.fmt.allocPrint(ctx.arena, "/item/{d}", .{comment.story_id});
+            ctx.response.setHeader("Location", redirect_url);
+            ctx.response.setStatus(.found);
+            return (<div>Redirecting...</div>);
+        }
+    }
+
+    return (
+        <table @allocator={ctx.arena} border="0">
+            <tr>
+                <td class="votelinks" valign="top">
+                    <center>
+                        {if (ctx.state.is_authenticated and !s.hasVoted(ctx.state.username.?, comment.id)) (
+                            <a id=`up_{comment.id}` href=`/vote?id={comment.id}&how=up`>
+                                <div class="votearrow" title="upvote"></div>
+                            </a>
+                        ) else (
+                            <div style="width: 10px; height: 10px;"></div>
+                        )}
+                    </center>
+                </td>
+                <td class="default">
+                    <div style="margin-top:2px; margin-bottom:-10px;">
+                        <span class="comhead">
+                            <a href=`/user?id={comment.author}` class="hnuser">{comment.author}</a> 
+                            <span class="age" title=`{comment.time}`><a href=`/item?id={comment.id}`>{" "}{timeAgo(comment.time)}</a></span>
+                        </span>
+                    </div>
+                    <br />
+                    <div class="comment">
+                        <span class="commtext c00">{comment.text}</span>
+                    </div>
+                    <br />
+                    <form method="POST">
+                        <textarea name="text" rows="6" cols="60" style="font-family: inherit;"></textarea>
+                        <br /><br />
+                        <input type="submit" value="reply" />
+                    </form>
+                </td>
+            </tr>
+        </table>
+    );
+}
+
+fn timeAgo(timestamp: i64) []const u8 {
+    const now = std.time.timestamp();
+    const diff = @max(0, now - timestamp);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return "minutes ago";
+    if (diff < 86400) return "hours ago";
+    return "days ago";
+}
+
+pub const options = zx.PageOptions{
+    .methods = &.{ .GET, .POST },
+};
+
+const AuthState = @import("../proxy.zig").AuthState;
+const std = @import("std");
+const zx = @import("zx");
+const store = @import("../../data.zig");

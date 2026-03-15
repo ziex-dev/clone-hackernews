@@ -8,3 +8,6 @@ zig-out
 
 # Node.js
 node_modules
+
+# Wrangler
+.wrangler/

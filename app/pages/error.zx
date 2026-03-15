@@ -1,0 +1,32 @@
+pub fn Error(ctx: zx.ErrorContext) zx.Component {
+    const trace = stackTrace(ctx.arena) catch "";
+
+    return (
+        <div @allocator={ctx.arena}>
+            <span>{@errorName(ctx.err)}</span>
+            <br />
+            <pre>{trace}</pre>
+            <br />
+            <a href={ctx.request.url}>Reload page</a>
+        </div>
+    );
+}
+
+fn stackTrace(allocator: std.mem.Allocator) ![]const u8 {
+    var text: std.Io.Writer.Allocating = .init(allocator);
+    defer text.deinit();
+
+    if (@errorReturnTrace()) |trace| {
+        try std.debug.writeStackTrace(
+            trace.*,
+            &text.writer,
+            try std.debug.getSelfDebugInfo(),
+            .no_color,
+        );
+    }
+
+    return text.toOwnedSlice();
+}
+
+const std = @import("std");
+const zx = @import("zx");

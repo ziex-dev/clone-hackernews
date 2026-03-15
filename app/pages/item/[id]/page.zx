@@ -32,9 +32,13 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
                 <tr class="athing" id=`{item.id}`>
                     <td valign="top" class="votelinks">
                         <center>
-                            <a id=`up_{item.id}` href=`/vote?id={item.id}&how=up`>
-                                <div class="votearrow" title="upvote"></div>
-                            </a>
+                            {if (ctx.state.is_authenticated and !s.hasVoted(ctx.state.username.?, item.id)) (
+                                <a id=`up_{item.id}` href=`/vote?id={item.id}&how=up`>
+                                    <div class="votearrow" title="upvote"></div>
+                                </a>
+                            ) else (
+                                <div style="width: 10px; height: 10px;"></div>
+                            )}
                         </center>
                     </td>
                     <td class="title">
@@ -87,7 +91,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 
             <table border="0" class="comment-tree">
                 {for (getCommentsForStory(ctx.arena, s, item.id)) |comment| (
-                    <CommentComponent comment={comment} store={s} indent={0} />
+                    <CommentComponent comment={comment} store={s} indent={0} username={ctx.state.username} />
                 )}
             </table>
         </fragment>
@@ -121,7 +125,7 @@ fn getCommentsForStory(allocator: std.mem.Allocator, s: *store.Store, story_id: 
     return list.toOwnedSlice(allocator) catch &[_]store.Comment{};
 }
 
-pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: store.Comment, store: *store.Store, indent: usize }) zx.Component {
+pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: store.Comment, store: *store.Store, indent: usize, username: ?[]const u8 }) zx.Component {
     return (
         <fragment @{allocator}>
             <tr class="athing comtr">
@@ -133,9 +137,13 @@ pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: s
                             </td>
                             <td valign="top" class="votelinks">
                                 <center>
-                                    <a id=`up_{props.comment.id}` href=`/vote?id={props.comment.id}&how=up`>
-                                        <div class="votearrow" title="upvote"></div>
-                                    </a>
+                                    {if (props.username != null and !props.store.hasVoted(props.username.?, props.comment.id)) (
+                                        <a id=`up_{props.comment.id}` href=`/vote?id={props.comment.id}&how=up`>
+                                            <div class="votearrow" title="upvote"></div>
+                                        </a>
+                                    ) else (
+                                        <div style="width: 10px; height: 10px;"></div>
+                                    )}
                                 </center>
                             </td>
                             <td class="default">
@@ -152,8 +160,7 @@ pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: s
                                 <br />
                                 <div class="comment">
                                     <span class="commtext c00">{props.comment.text}</span>
-                                    // TODO: Implement reply functionality
-                                    <div class="reply" style="display: none;">
+                                    <div class="reply">
                                         <p>
                                             <font size="1">
                                                 <u><a href=`/reply?id={props.comment.id}`>reply</a></u>
@@ -166,9 +173,9 @@ pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: s
                     </table>
                 </td>
             </tr>
-            {for (props.comment.replies.items) |reply_id| (
+            {for (props.comment.replies) |reply_id| (
                 if (props.store.comments.get(reply_id)) |reply| (
-                    <CommentComponent comment={reply} store={props.store} indent={props.indent + 1} />
+                    <CommentComponent comment={reply} store={props.store} indent={props.indent + 1} username={props.username} />
                 )
             )}
         </fragment>

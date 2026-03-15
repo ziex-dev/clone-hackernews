@@ -1,0 +1,29 @@
+pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+    const id_str = ctx.request.searchParams.get("id") orelse {
+        return (<div @allocator={ctx.arena}>Missing ID</div>);
+    };
+    const id = std.fmt.parseInt(usize, id_str, 10) catch {
+        return (<div @allocator={ctx.arena}>Invalid ID</div>);
+    };
+
+    const s = try store.get(ctx.allocator);
+    const username = ctx.state.username orelse {
+        const msg = "You must be logged in to vote.";
+        const redirect_url = try std.fmt.allocPrint(ctx.arena, "/login?msg={s}", .{msg});
+        ctx.response.setHeader("Location", redirect_url);
+        ctx.response.setStatus(.found);
+        return (<div>Redirecting...</div>);
+    };
+
+    try s.vote(username, id);
+
+    const referer = ctx.request.headers.get("referer") orelse "/";
+    ctx.response.setHeader("Location", referer);
+    ctx.response.setStatus(.found);
+    return (<div>Redirecting...</div>);
+}
+
+const AuthState = @import("../proxy.zig").AuthState;
+const std = @import("std");
+const zx = @import("zx");
+const store = @import("../../data.zig");

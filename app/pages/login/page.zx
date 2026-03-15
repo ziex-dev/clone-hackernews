@@ -65,14 +65,36 @@ fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
     const fd = ctx.request.formData();
     const action = fd.get("action") orelse return;
 
-    if (std.mem.eql(u8, action, "Login") or std.mem.eql(u8, action, "Create Account")) {
+    if (std.mem.eql(u8, action, "Login")) {
         const username = fd.get("username") orelse return;
-        if (username.len > 0) {
-            ctx.response.setCookie("session", username, .{
-                .path = "/",
-                .max_age = 3600 * 24 * 7, // 1 week
-            });
+        const password = fd.get("password") orelse return;
+        if (username.len == 0) return;
+
+        const s = data.get(ctx.allocator) catch return;
+        const user = s.getUser(username) orelse {
+            ctx.response.redirect("/login?msg=Invalid username or password", 302);
+            return;
+        };
+        if (!std.mem.eql(u8, user.password, password)) {
+            ctx.response.redirect("/login?msg=Invalid username or password", 302);
+            return;
         }
+
+        ctx.response.setCookie("session", username, .{ .path = "/", .max_age = 3600 * 24 * 7 });
+        ctx.response.redirect("/", 302);
+    } else if (std.mem.eql(u8, action, "Create Account")) {
+        const username = fd.get("username") orelse return;
+        const password = fd.get("password") orelse return;
+        if (username.len == 0 or password.len == 0) return;
+
+        const s = data.get(ctx.allocator) catch return;
+        if (s.getUser(username) != null) {
+            ctx.response.redirect("/login?msg=Username already taken", 302);
+            return;
+        }
+
+        s.addUser(username, password) catch return;
+        ctx.response.setCookie("session", username, .{ .path = "/", .max_age = 3600 * 24 * 7 });
         ctx.response.redirect("/", 302);
     } else if (std.mem.eql(u8, action, "Logout")) {
         ctx.response.deleteCookie("session", .{ .path = "/" });
@@ -88,3 +110,4 @@ pub const options = zx.PageOptions{
 
 const zx = @import("zx");
 const std = @import("std");
+const data = @import("../../data.zig");
