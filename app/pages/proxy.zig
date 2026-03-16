@@ -1,17 +1,37 @@
 const std = @import("std");
 const zx = @import("zx");
+const data = @import("../data.zig");
 
 /// Runs before every page and route
 pub fn Proxy(ctx: *zx.ProxyContext) !void {
     const session = ctx.request.cookies.get("session");
 
-    ctx.state(AuthState{
-        .username = session,
-        .is_authenticated = session != null,
-    });
+    var state = AuthState{
+        .username = null,
+        .is_authenticated = false,
+    };
+
+    if (session) |s| {
+        if (std.mem.indexOfScalar(u8, s, ':')) |idx| {
+            const username = s[0..idx];
+            const password = s[idx + 1 ..];
+
+            const s_store = data.get(ctx.allocator) catch null;
+            if (s_store) |store| {
+                if (store.getUser(username)) |user| {
+                    if (std.mem.eql(u8, user.password, password)) {
+                        state.username = username;
+                        state.is_authenticated = true;
+                    }
+                }
+            }
+        }
+    }
+
+    ctx.state(state);
 
     // Handle protected routes if any
-    if (isProtectedRoute(ctx.request.pathname) and session == null) {
+    if (isProtectedRoute(ctx.request.pathname) and !state.is_authenticated) {
         return ctx.response.redirect("/login?msg=You must be logged in to access this page", 302);
     }
 

@@ -90,6 +90,11 @@ a:visited {
     line-height: 12px;
 }
 
+/* Active nav link style */
+.pagetop a.active {
+    color: #fff !important;
+}
+
 .comhead {
     font-family: Verdana, Geneva, sans-serif;
     font-size: 8pt;

@@ -1,5 +1,6 @@
 pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Component {
     const auth = ctx.state;
+    const path = ctx.request.pathname;
 
     return (
         <html @allocator={ctx.arena} lang="en">
@@ -24,14 +25,14 @@ pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Com
                                         </td>
                                         <td style="line-height:12pt; height:10px;">
                                             <span class="pagetop">
-                                                <b class="hnname"><a href="/">Hacker News</a></b>
-                                                <a href="/new">new</a> | 
-                                                <a href="/past">past</a> | 
-                                                <a href="/comments">comments</a> | 
-                                                <a href="/ask">ask</a> | 
-                                                <a href="/show">show</a> | 
-                                                <a href="/jobs">jobs</a> | 
-                                                <a href="/submit">submit</a>
+                                                   <b class="hnname"><a href="/" class={getactive(path, "/")}>Hacker News</a></b>
+                                                   <a href="/new" class={getactive(path, "/new")}>new</a> | 
+                                                   <a href="/past" class={getactive(path, "/past")}>past</a> | 
+                                                   <a href="/comments" class={getactive(path, "/comments")}>comments</a> | 
+                                                   <a href="/ask" class={getactive(path, "/ask")}>ask</a> | 
+                                                   <a href="/show" class={getactive(path, "/show")}>show</a> | 
+                                                   <a href="/jobs" class={getactive(path, "/jobs")}>jobs</a> | 
+                                                   <a href="/submit" class={getactive(path, "/submit")}>submit</a>
                                             </span>
                                         </td>
                                         <td style="text-align:right;padding-right:4px;">
@@ -86,5 +87,11 @@ pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Com
     );
 }
 
+fn getactive(path: []const u8, link: []const u8) ?[]const u8 {
+    if (std.mem.startsWith(u8, path, link)) return "active";
+    return null;
+}
+
 const AuthState = @import("proxy.zig").AuthState;
 const zx = @import("zx");
+const std = @import("std");
