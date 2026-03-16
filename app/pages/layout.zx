@@ -25,7 +25,7 @@ pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Com
                                         </td>
                                         <td style="line-height:12pt; height:10px;">
                                             <span class="pagetop">
-                                                   <b class="hnname"><a href="/" class={getactive(path, "/")}>Hacker News</a></b>
+                                                   <b class="hnname"><a href="/">Hacker News</a></b>
                                                    <a href="/new" class={getactive(path, "/new")}>new</a> | 
                                                    <a href="/past" class={getactive(path, "/past")}>past</a> | 
                                                    <a href="/comments" class={getactive(path, "/comments")}>comments</a> | 
