@@ -11,7 +11,7 @@
 	],
 	"build": {
 		"watch_dir": "./app",
-		"command": "zig build -Dtarget=wasm32-wasi || true"
+		"command": "zig build -Dtarget=wasm32-wasi"
 	},
 	"assets": {
 		"directory": "./app/assets/",

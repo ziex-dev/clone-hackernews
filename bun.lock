@@ -6,7 +6,7 @@
       "name": "worker",
       "dependencies": {
         "@cloudflare/workers-wasi": "^0.0.5",
-        "ziex": "file:../ziex/pkg/ziex/dist",
+        "ziex": "^0.1.0-dev.785",
       },
       "devDependencies": {
         "@cloudflare/vitest-pool-workers": "^0.12.4",
@@ -348,7 +348,7 @@
 
     "youch-core": ["youch-core@0.3.3", "", { "dependencies": { "@poppinss/exception": "^1.2.2", "error-stack-parser-es": "^1.0.5" } }, "sha512-ho7XuGjLaJ2hWHoK8yFnsUGy2Y5uDpqSTq1FkHLK4/oqKtyUU1AFbOOxY4IpC9f0fTLjwYbslUz0Po5BpD1wrA=="],
 
-    "ziex": ["ziex@file:../ziex/pkg/ziex/dist", {}],
+    "ziex": ["ziex@0.1.0-dev.785", "", {}, "sha512-1NYPoVPi6gLUTGaT6nkg1guOhjmNMZ2g/yLercIZiK5hHuhWouxiS46NYbU9vtB+LpcwFvtb+FQ+PYCWe5zaiw=="],
 
     "@cloudflare/vitest-pool-workers/wrangler": ["wrangler@4.72.0", "", { "dependencies": { "@cloudflare/kv-asset-handler": "0.4.2", "@cloudflare/unenv-preset": "2.15.0", "blake3-wasm": "2.1.5", "esbuild": "0.27.3", "miniflare": "4.20260310.0", "path-to-regexp": "6.3.0", "unenv": "2.0.0-rc.24", "workerd": "1.20260310.1" }, "optionalDependencies": { "fsevents": "~2.3.2" }, "peerDependencies": { "@cloudflare/workers-types": "^4.20260310.1" }, "optionalPeers": ["@cloudflare/workers-types"], "bin": { "wrangler": "bin/wrangler.js", "wrangler2": "bin/wrangler.js" } }, "sha512-bKkb8150JGzJZJWiNB2nu/33smVfawmfYiecA6rW4XH7xS23/jqMbgpdelM34W/7a1IhR66qeQGVqTRXROtAZg=="],
 

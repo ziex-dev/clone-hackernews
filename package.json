@@ -11,7 +11,7 @@
 	},
 	"dependencies": {
 		"@cloudflare/workers-wasi": "^0.0.5",
-		"ziex": "file:../ziex/pkg/ziex/dist"
+		"ziex": "^0.1.0-dev.785"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.12.4",
