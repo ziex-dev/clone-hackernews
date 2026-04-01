@@ -1,23 +1,16 @@
 {
-	"name": "zx",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"dependencies": {
-		"@cloudflare/workers-wasi": "^0.0.5",
-		"ziex": "^0.1.0-dev.785"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.12.4",
-		"@types/node": "^25.5.0",
-		"typescript": "^5.5.2",
-		"vitest": "~3.2.0",
-		"wrangler": "^4.73.0"
-	}
+  "name": "hackernews",
+  "type": "module",
+  "scripts": {
+    "build": "wrangler build",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "ziex": "^0.1.0-dev.928"
+  },
+  "devDependencies": {
+    "wrangler": "^4.78.0",
+    "@zigc/cli": "0.15.20"
+  }
 }

@@ -1,26 +1,22 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "hackernews",
-	"main": "app/worker.ts",
+	"main": "app/main.ts",
 	"compatibility_date": "2026-03-10",
-	"observability": {
-		"enabled": true,
-	},
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
-	"build": {
-		"watch_dir": "./app",
-		"command": "zig build -Dtarget=wasm32-wasi"
-	},
-	"assets": {
-		"directory": "./app/assets/",
-		"binding": "ASSETS"
-	},
 	"kv_namespaces": [
 		{
-			"binding": "ZX_HN",
-			"id": "89c0ba2aa9a04fa494a8a8c7930d5bde"
-		}
-	]
+			"binding": "KV"
+		},
+	],
+	"build": {
+		"watch_dir": "./app",
+		"command": "zig build -Dtarget=wasm32-wasi -Doptimize=ReleaseSmall",
+	},
+	"assets": {
+		"directory": "./zig-out/static",
+		"binding": "ASSETS",
+	},
 }
