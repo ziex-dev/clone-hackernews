@@ -5,29 +5,9 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
     const page = std.fmt.parseInt(usize, p_str, 10) catch 1;
     const page_size = 30;
 
-    const all_stories = s.stories.items;
+    const result = try s.getStoriesByTitleKeywords(ctx.arena, "Hiring", "Job", page, page_size);
 
-    var filtered_buf = try ctx.arena.alloc(store.Story, all_stories.len);
-    var count: usize = 0;
-    for (all_stories) |item| {
-        if (std.mem.indexOf(u8, item.title, "Hiring") != null or std.mem.indexOf(u8, item.title, "Job") != null) {
-            filtered_buf[count] = item;
-            count += 1;
-        }
-    }
-    const filtered = filtered_buf[0..count];
-
-    var stories_list = try ctx.arena.alloc(store.Story, filtered.len);
-    for (filtered, 0..) |item, i| {
-        stories_list[filtered.len - 1 - i] = item;
-    }
-
-    const start = (page - 1) * page_size;
-    const end = @min(stories_list.len, start + page_size);
-    const stories = if (start < stories_list.len) stories_list[start..end] else &[_]store.Story{};
-    const has_more = stories_list.len > end;
-
-    return (<StoryList @allocator={ctx.allocator} stories={stories} page={page} page_size={page_size} has_more={has_more} base_path="/jobs" username={ctx.state.username} store={s} />);
+    return (<StoryList @allocator={ctx.allocator} stories={result.stories} page={page} page_size={page_size} has_more={result.has_more} base_path="/jobs" username={ctx.state.username} store={s} />);
 }
 
 const AuthState = @import("../proxy.zig").AuthState;

@@ -47,10 +47,10 @@ pub fn init() !void {
     , .empty);
 }
 
-pub fn storyCount() !i64 {
+pub fn storyCount(allocator: std.mem.Allocator) !i64 {
     var stmt = try db.query("SELECT COUNT(*) AS cnt FROM stories");
     defer stmt.deinit();
-    const row = (try stmt.get(zx.Allocator.allocator(), .empty)) orelse return 0;
+    const row = (try stmt.get(allocator, .empty)) orelse return 0;
     return asInt(row, "cnt");
 }
 
@@ -178,6 +178,96 @@ pub fn searchStories(allocator: zx.Allocator, search_query: []const u8) ![]const
         .{ .text = search_query },
     } });
 }
+
+pub fn storiesByScore(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY score DESC LIMIT ? OFFSET ?");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+pub fn storiesByNewest(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY id DESC LIMIT ? OFFSET ?");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+pub fn storiesByOldest(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY time ASC LIMIT ? OFFSET ?");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+pub fn storiesByTitlePrefix(allocator: std.mem.Allocator, prefix: []const u8, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .text = prefix },
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+pub fn storiesByTitleKeywords(allocator: std.mem.Allocator, kw1: []const u8, kw2: []const u8, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE '%' || ? || '%' OR title LIKE '%' || ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .text = kw1 },
+        .{ .text = kw2 },
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+pub fn paginatedSearchStories(allocator: std.mem.Allocator, search_query: []const u8, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare(
+        "SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE '%' || ? || '%' OR text LIKE '%' || ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?",
+    );
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .text = search_query },
+        .{ .text = search_query },
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+pub fn storyByIdQuery(allocator: std.mem.Allocator, id: usize) !?Row {
+    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE id = ?");
+    defer stmt.deinit();
+    return try stmt.get(allocator, .{ .positional = &.{.{ .integer = @intCast(id) }} });
+}
+
+pub fn commentsForStoryQuery(allocator: std.mem.Allocator, story_id: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments WHERE story_id = ? ORDER BY id ASC");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{.{ .integer = @intCast(story_id) }} });
+}
+
+pub fn commentByIdQuery(allocator: std.mem.Allocator, id: usize) !?Row {
+    var stmt = try db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments WHERE id = ?");
+    defer stmt.deinit();
+    return try stmt.get(allocator, .{ .positional = &.{.{ .integer = @intCast(id) }} });
+}
+
+pub fn commentsPaginated(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
+    var stmt = try db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments ORDER BY time DESC LIMIT ? OFFSET ?");
+    defer stmt.deinit();
+    return try stmt.all(allocator, .{ .positional = &.{
+        .{ .integer = @intCast(limit) },
+        .{ .integer = @intCast(offset) },
+    } });
+}
+
+const std = @import("std");
 
 fn asInt(row: Row, name: []const u8) i64 {
     return switch (row.get(name) orelse .null) {

@@ -24,241 +24,216 @@ pub const Comment = struct {
     replies: []usize = &.{},
 };
 
-pub const Vote = struct {
-    username: []const u8,
-    item_id: usize,
-};
-
 pub const User = struct {
     username: []const u8,
     password: []const u8,
 };
 
+pub const PagedStories = struct {
+    stories: []Story,
+    has_more: bool,
+};
+
+pub const PagedComments = struct {
+    comments: []Comment,
+    has_more: bool,
+};
+
 pub const Store = struct {
     allocator: std.mem.Allocator,
-    stories: std.ArrayListUnmanaged(Story),
-    comments: std.AutoHashMapUnmanaged(usize, Comment),
-    users: std.StringHashMapUnmanaged(User),
-    votes: std.ArrayListUnmanaged(Vote),
-    next_id: usize,
+    comments: std.AutoHashMapUnmanaged(usize, Comment) = .empty,
 
-    pub fn addStory(self: *Store, title: []const u8, url: ?[]const u8, text: ?[]const u8, author: []const u8) !usize {
-        const time = std.time.timestamp();
-        const rowid = try query.insertStory(title, url, text, author, time);
-        const id: usize = @intCast(rowid);
-
-        try self.stories.append(self.allocator, .{
-            .id = id,
-            .title = title,
-            .url = url,
-            .text = text,
-            .author = author,
-            .score = 1,
-            .comment_count = 0,
-            .time = time,
-        });
-
-        if (id >= self.next_id) self.next_id = id + 1;
-        return id;
+    // Paginated story queries
+    pub fn getStoriesByScore(_: *Store, allocator: std.mem.Allocator, page: usize, page_size: usize) !PagedStories {
+        const offset = (page - 1) * page_size;
+        const rows = try query.storiesByScore(allocator, page_size + 1, offset);
+        return rowsToPagedStories(allocator, rows, page_size);
     }
 
-    pub fn addComment(self: *Store, story_id: usize, parent_id: ?usize, author: []const u8, text: []const u8) !usize {
-        const time = std.time.timestamp();
-        const rowid = try query.insertComment(story_id, parent_id, author, text, time);
-        const id: usize = @intCast(rowid);
-
-        try self.comments.put(self.allocator, id, .{
-            .id = id,
-            .story_id = story_id,
-            .parent_id = parent_id,
-            .author = author,
-            .text = text,
-            .time = time,
-            .score = 1,
-        });
-
-        if (parent_id) |p_id| {
-            if (self.comments.getPtr(p_id)) |p| {
-                const new_replies = try self.allocator.realloc(p.replies, p.replies.len + 1);
-                new_replies[new_replies.len - 1] = id;
-                p.replies = new_replies;
-            }
-        }
-
-        for (self.stories.items) |*story| {
-            if (story.id == story_id) {
-                story.comment_count += 1;
-                break;
-            }
-        }
-
-        if (id >= self.next_id) self.next_id = id + 1;
-        return id;
+    pub fn getStoriesByNewest(_: *Store, allocator: std.mem.Allocator, page: usize, page_size: usize) !PagedStories {
+        const offset = (page - 1) * page_size;
+        const rows = try query.storiesByNewest(allocator, page_size + 1, offset);
+        return rowsToPagedStories(allocator, rows, page_size);
     }
 
-    pub fn vote(self: *Store, username: []const u8, item_id: usize) !void {
-        if (try query.hasVoted(self.allocator, username, item_id)) return;
+    pub fn getStoriesByOldest(_: *Store, allocator: std.mem.Allocator, page: usize, page_size: usize) !PagedStories {
+        const offset = (page - 1) * page_size;
+        const rows = try query.storiesByOldest(allocator, page_size + 1, offset);
+        return rowsToPagedStories(allocator, rows, page_size);
+    }
 
-        try query.insertVote(username, item_id);
+    pub fn getStoriesByTitlePrefix(_: *Store, allocator: std.mem.Allocator, prefix: []const u8, page: usize, page_size: usize) !PagedStories {
+        const offset = (page - 1) * page_size;
+        const rows = try query.storiesByTitlePrefix(allocator, prefix, page_size + 1, offset);
+        return rowsToPagedStories(allocator, rows, page_size);
+    }
 
-        if (try query.isComment(self.allocator, item_id)) {
-            try query.upvoteComment(item_id);
-            if (self.comments.getPtr(item_id)) |c| {
-                c.score += 1;
-            }
-        } else {
-            try query.upvoteStory(item_id);
-            for (self.stories.items) |*s| {
-                if (s.id == item_id) {
-                    s.score += 1;
-                    break;
-                }
-            }
-        }
+    pub fn getStoriesByTitleKeywords(_: *Store, allocator: std.mem.Allocator, kw1: []const u8, kw2: []const u8, page: usize, page_size: usize) !PagedStories {
+        const offset = (page - 1) * page_size;
+        const rows = try query.storiesByTitleKeywords(allocator, kw1, kw2, page_size + 1, offset);
+        return rowsToPagedStories(allocator, rows, page_size);
+    }
 
-        try self.votes.append(self.allocator, .{
-            .username = try self.allocator.dupe(u8, username),
-            .item_id = item_id,
-        });
+    pub fn searchStories(_: *Store, allocator: std.mem.Allocator, search_query: []const u8, page: usize, page_size: usize) !PagedStories {
+        const offset = (page - 1) * page_size;
+        const rows = try query.paginatedSearchStories(allocator, search_query, page_size + 1, offset);
+        return rowsToPagedStories(allocator, rows, page_size);
+    }
+
+    // Single item lookups
+    pub fn getStoryById(self: *Store, id: usize) ?Story {
+        const row = query.storyByIdQuery(self.allocator, id) catch return null;
+        if (row) |r| return rowToStory(r);
+        return null;
+    }
+
+    pub fn getCommentById(self: *Store, id: usize) ?Comment {
+        const row = query.commentByIdQuery(self.allocator, id) catch return null;
+        if (row) |r| return rowToComment(r);
+        return null;
+    }
+
+    pub fn getUser(self: *Store, username: []const u8) ?User {
+        const result = query.getUser(self.allocator, username) catch return null;
+        if (result) |r| return User{ .username = r.username, .password = r.password };
+        return null;
     }
 
     pub fn hasVoted(self: *Store, username: []const u8, item_id: usize) bool {
         return query.hasVoted(self.allocator, username, item_id) catch false;
     }
 
-    pub fn addUser(self: *Store, username: []const u8, password: []const u8) !void {
-        try query.insertUser(username, password);
-        const owned_username = try self.allocator.dupe(u8, username);
-        try self.users.put(self.allocator, owned_username, .{
-            .username = owned_username,
-            .password = try self.allocator.dupe(u8, password),
-        });
-    }
-
-    pub fn getUser(self: *Store, username: []const u8) ?User {
-        return self.users.get(username);
-    }
-
-    pub fn searchStories(self: *Store, allocator: std.mem.Allocator, search_query: []const u8) ![]Story {
-        var list = std.ArrayListUnmanaged(Story){};
-        for (self.stories.items) |item| {
-            const in_title = std.ascii.indexOfIgnoreCase(item.title, search_query) != null;
-            const in_text = if (item.text) |t| std.ascii.indexOfIgnoreCase(t, search_query) != null else false;
-            if (in_title or in_text) {
-                try list.append(self.allocator, item);
+    // Load all comments for a story into self.comments hashmap (for item page tree)
+    pub fn loadCommentsForStory(self: *Store, story_id: usize) !void {
+        const rows = try query.commentsForStoryQuery(self.allocator, story_id);
+        for (rows) |row| {
+            const id: usize = @intCast(asInt(row, "id"));
+            const parent_id_val = asInt(row, "parent_id");
+            const parent_id: ?usize = if (parent_id_val > 0) @intCast(parent_id_val) else null;
+            try self.comments.put(self.allocator, id, .{
+                .id = id,
+                .story_id = @intCast(asInt(row, "story_id")),
+                .parent_id = parent_id,
+                .author = asText(row, "author"),
+                .text = asText(row, "text"),
+                .time = asInt(row, "time"),
+                .score = @intCast(asInt(row, "score")),
+            });
+        }
+        for (rows) |row| {
+            const parent_id_val = asInt(row, "parent_id");
+            if (parent_id_val > 0) {
+                const parent_id: usize = @intCast(parent_id_val);
+                const child_id: usize = @intCast(asInt(row, "id"));
+                if (self.comments.getPtr(parent_id)) |p| {
+                    const new_replies = try self.allocator.realloc(p.replies, p.replies.len + 1);
+                    new_replies[new_replies.len - 1] = child_id;
+                    p.replies = new_replies;
+                }
             }
         }
-        return list.toOwnedSlice(allocator);
+    }
+
+    // Paginated comments query
+    pub fn getCommentsPaginated(_: *Store, allocator: std.mem.Allocator, page: usize, page_size: usize) !PagedComments {
+        const offset = (page - 1) * page_size;
+        const rows = try query.commentsPaginated(allocator, page_size + 1, offset);
+        const has_more = rows.len > page_size;
+        const display_rows = if (has_more) rows[0..page_size] else rows;
+        var comments = try allocator.alloc(Comment, display_rows.len);
+        for (display_rows, 0..) |row, i| {
+            comments[i] = rowToComment(row);
+        }
+        return .{ .comments = comments, .has_more = has_more };
+    }
+
+    // Mutations
+    pub fn addStory(_: *Store, title: []const u8, url: ?[]const u8, text: ?[]const u8, author: []const u8) !usize {
+        const time = std.time.timestamp();
+        const rowid = try query.insertStory(title, url, text, author, time);
+        return @intCast(rowid);
+    }
+
+    pub fn addComment(_: *Store, story_id: usize, parent_id: ?usize, author: []const u8, text: []const u8) !usize {
+        const time = std.time.timestamp();
+        const rowid = try query.insertComment(story_id, parent_id, author, text, time);
+        return @intCast(rowid);
+    }
+
+    pub fn vote(self: *Store, username: []const u8, item_id: usize) !void {
+        if (try query.hasVoted(self.allocator, username, item_id)) return;
+        try query.insertVote(username, item_id);
+        if (try query.isComment(self.allocator, item_id)) {
+            try query.upvoteComment(item_id);
+        } else {
+            try query.upvoteStory(item_id);
+        }
+    }
+
+    pub fn addUser(_: *Store, username: []const u8, password: []const u8) !void {
+        try query.insertUser(username, password);
     }
 };
 
+var db_initialized = false;
+
 pub fn get(allocator: std.mem.Allocator) !*Store {
     const s = try allocator.create(Store);
-    s.* = .{
-        .allocator = allocator,
-        .stories = .empty,
-        .comments = .empty,
-        .users = .empty,
-        .votes = .empty,
-        .next_id = 1,
-    };
+    s.* = .{ .allocator = allocator };
 
-    // Initialize DB tables
-    try query.init();
+    if (!db_initialized) {
+        try query.init();
 
-    // Load from DB
-    try load(s, allocator);
+        if ((try query.storyCount(allocator)) == 0) {
+            const story1_id = try s.addStory("Ziex: A full-stack web framework for Zig", null, null, "nurulhudaapon");
+            _ = try s.addStory("Show HN: Exact Hacker News Clone in Ziex", null, "I built this clone to show off Ziex.", "nurulhudaapon");
+            _ = try s.addStory("Zig 0.15.2 Released", "https://ziglang.org/download/0.15.1/release-notes.html", null, "andrewrk");
 
-    // Seed if empty
-    if (s.stories.items.len == 0) {
-        _ = try s.addStory("Ziex: A full-stack web framework for Zig", null, null, "nurulhudaapon");
-        _ = try s.addStory("Show HN: Exact Hacker News Clone in Ziex", null, "I built this clone to show off Ziex.", "nurulhudaapon");
-        _ = try s.addStory("Zig 0.15.2 Released", "https://ziglang.org/download/0.15.1/release-notes.html", null, "andrewrk");
+            const c1_id = try s.addComment(story1_id, null, "user1", "This looks amazing!");
+            _ = try s.addComment(story1_id, null, "user2", "Zig is the future of web dev.");
+            _ = try s.addComment(story1_id, c1_id, "user3", "I agree!");
+        }
 
-        const story1_id = s.stories.items[0].id;
-        const c1_id = try s.addComment(story1_id, null, "user1", "This looks amazing!");
-        _ = try s.addComment(story1_id, null, "user2", "Zig is the future of web dev.");
-        _ = try s.addComment(story1_id, c1_id, "user3", "I agree!");
+        db_initialized = true;
     }
 
     return s;
 }
 
-fn load(s: *Store, allocator: std.mem.Allocator) !void {
-    // Load stories
-    const story_rows = try query.allStories(allocator);
-    for (story_rows) |row| {
-        const id: usize = @intCast(asInt(row, "id"));
-        try s.stories.append(allocator, .{
-            .id = id,
-            .title = asText(row, "title"),
-            .url = asOptionalText(row, "url"),
-            .text = asOptionalText(row, "text"),
-            .author = asText(row, "author"),
-            .score = @intCast(asInt(row, "score")),
-            .comment_count = @intCast(asInt(row, "comment_count")),
-            .time = asInt(row, "time"),
-        });
-        if (id >= s.next_id) s.next_id = id + 1;
+fn rowsToPagedStories(allocator: std.mem.Allocator, rows: []const zx.db.Row, page_size: usize) !PagedStories {
+    const has_more = rows.len > page_size;
+    const display_rows = if (has_more) rows[0..page_size] else rows;
+    var stories = try allocator.alloc(Story, display_rows.len);
+    for (display_rows, 0..) |row, i| {
+        stories[i] = rowToStory(row);
     }
-
-    // Load comments
-    const comment_rows = try query.allComments(allocator);
-    for (comment_rows) |row| {
-        const id: usize = @intCast(asInt(row, "id"));
-        const parent_id_val = asInt(row, "parent_id");
-        const parent_id: ?usize = if (parent_id_val > 0) @intCast(parent_id_val) else null;
-
-        // Get replies for this comment
-        const reply_rows = try query.commentReplies(allocator, id);
-        var replies = try allocator.alloc(usize, reply_rows.len);
-        for (reply_rows, 0..) |reply_row, i| {
-            replies[i] = @intCast(asInt(reply_row, "id"));
-        }
-
-        try s.comments.put(allocator, id, .{
-            .id = id,
-            .story_id = @intCast(asInt(row, "story_id")),
-            .parent_id = parent_id,
-            .author = asText(row, "author"),
-            .text = asText(row, "text"),
-            .time = asInt(row, "time"),
-            .score = @intCast(asInt(row, "score")),
-            .replies = replies,
-        });
-        if (id >= s.next_id) s.next_id = id + 1;
-    }
-
-    // Load users
-    const user_rows = try allUsers(allocator);
-    for (user_rows) |row| {
-        const username = asText(row, "username");
-        try s.users.put(allocator, username, .{
-            .username = username,
-            .password = asText(row, "password"),
-        });
-    }
-
-    // Load votes
-    const vote_rows = try allVotes(allocator);
-    for (vote_rows) |row| {
-        try s.votes.append(allocator, .{
-            .username = asText(row, "username"),
-            .item_id = @intCast(asInt(row, "item_id")),
-        });
-    }
+    return .{ .stories = stories, .has_more = has_more };
 }
 
-fn allUsers(allocator: std.mem.Allocator) ![]const zx.db.Row {
-    var stmt = try zx.db.query("SELECT username, password FROM users");
-    defer stmt.deinit();
-    return try stmt.all(allocator, .empty);
+fn rowToStory(row: zx.db.Row) Story {
+    return .{
+        .id = @intCast(asInt(row, "id")),
+        .title = asText(row, "title"),
+        .url = asOptionalText(row, "url"),
+        .text = asOptionalText(row, "text"),
+        .author = asText(row, "author"),
+        .score = @intCast(asInt(row, "score")),
+        .comment_count = @intCast(asInt(row, "comment_count")),
+        .time = asInt(row, "time"),
+    };
 }
 
-fn allVotes(allocator: std.mem.Allocator) ![]const zx.db.Row {
-    var stmt = try zx.db.query("SELECT username, item_id FROM votes");
-    defer stmt.deinit();
-    return try stmt.all(allocator, .empty);
+fn rowToComment(row: zx.db.Row) Comment {
+    const parent_id_val = asInt(row, "parent_id");
+    return .{
+        .id = @intCast(asInt(row, "id")),
+        .story_id = @intCast(asInt(row, "story_id")),
+        .parent_id = if (parent_id_val > 0) @intCast(parent_id_val) else null,
+        .author = asText(row, "author"),
+        .text = asText(row, "text"),
+        .time = asInt(row, "time"),
+        .score = @intCast(asInt(row, "score")),
+    };
 }
 
 fn asInt(row: zx.db.Row, name: []const u8) i64 {

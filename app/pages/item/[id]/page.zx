@@ -11,20 +11,12 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 
     const s = try store.get(ctx.allocator);
 
-    var story: ?store.Story = null;
-    for (s.stories.items) |st| {
-        if (st.id == id) {
-            story = st;
-            break;
-        }
-    }
-
-    if (story == null) {
+    const item = s.getStoryById(id) orelse {
         return (<div @allocator={ctx.arena}>Not Found</div>);
-    }
+    };
 
     if (ctx.request.method == .POST) try handleAddComment(ctx);
-    const item = story.?;
+    try s.loadCommentsForStory(item.id);
     const comments = try getCommentsForStory(ctx.arena, s, item.id);
 
     return (

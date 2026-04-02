@@ -9,7 +9,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
     };
 
     const s = try store.get(ctx.allocator);
-    const comment = s.comments.get(id) orelse {
+    const comment = s.getCommentById(id) orelse {
         return (<div @allocator={ctx.arena}>Comment Not Found</div>);
     };
 
