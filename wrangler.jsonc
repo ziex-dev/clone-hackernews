@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "hackernews",
+	"name": "clone-hackernews",
 	"main": "app/main.ts",
 	"build": {
 		"watch_dir": "./app",
