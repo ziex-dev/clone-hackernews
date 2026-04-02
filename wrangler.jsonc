@@ -2,6 +2,10 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "hackernews",
 	"main": "app/main.ts",
+	"build": {
+		"watch_dir": "./app",
+		"command": "zig build -Dtarget=wasm32-wasi -Doptimize=ReleaseSmall",
+	},
 	"compatibility_date": "2026-03-10",
 	"compatibility_flags": [
 		"nodejs_compat"
@@ -11,10 +15,11 @@
 			"binding": "KV"
 		},
 	],
-	"build": {
-		"watch_dir": "./app",
-		"command": "zig build -Dtarget=wasm32-wasi -Doptimize=ReleaseSmall",
-	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+		}
+	],
 	"assets": {
 		"directory": "./zig-out/static",
 		"binding": "ASSETS",

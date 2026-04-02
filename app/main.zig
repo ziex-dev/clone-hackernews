@@ -2,14 +2,14 @@ const std = @import("std");
 const zx = @import("zx");
 
 pub fn main() !void {
-    if (zx.platform == .browser) return try zx.Client.run();
-    if (zx.platform == .edge) return try zx.Edge.run();
+    if (zx.platform.role == .client) return zx.Client.run();
+    if (zx.platform.isEdge()) return zx.Edge.run();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    const app = try zx.Server(void).init(allocator, .init, {});
+    const app = try zx.Server(void).init(allocator, .{}, {});
     defer app.deinit();
 
     app.info();
