@@ -1,0 +1,35 @@
+-- Migration number: 0001 	 2026-04-02T19:23:46.192Z
+CREATE TABLE IF NOT EXISTS stories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  url TEXT,
+  text TEXT,
+  author TEXT NOT NULL,
+  score INTEGER NOT NULL DEFAULT 1,
+  comment_count INTEGER NOT NULL DEFAULT 0,
+  time INTEGER NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  story_id INTEGER NOT NULL,
+  parent_id INTEGER,
+  author TEXT NOT NULL,
+  text TEXT NOT NULL,
+  time INTEGER NOT NULL,
+  score INTEGER NOT NULL DEFAULT 1
+);
+
+
+CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY,
+  password TEXT NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS votes (
+  username TEXT NOT NULL,
+  item_id INTEGER NOT NULL,
+  PRIMARY KEY (username, item_id)
+);

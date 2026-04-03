@@ -5,48 +5,6 @@ const Bindings = db.Bindings;
 const Value = db.Value;
 const Row = db.Row;
 
-pub fn init() !void {
-    _ = try db.run(
-        \\CREATE TABLE IF NOT EXISTS stories (
-        \\  id INTEGER PRIMARY KEY AUTOINCREMENT,
-        \\  title TEXT NOT NULL,
-        \\  url TEXT,
-        \\  text TEXT,
-        \\  author TEXT NOT NULL,
-        \\  score INTEGER NOT NULL DEFAULT 1,
-        \\  comment_count INTEGER NOT NULL DEFAULT 0,
-        \\  time INTEGER NOT NULL
-        \\)
-    , .empty);
-
-    _ = try db.run(
-        \\CREATE TABLE IF NOT EXISTS comments (
-        \\  id INTEGER PRIMARY KEY AUTOINCREMENT,
-        \\  story_id INTEGER NOT NULL,
-        \\  parent_id INTEGER,
-        \\  author TEXT NOT NULL,
-        \\  text TEXT NOT NULL,
-        \\  time INTEGER NOT NULL,
-        \\  score INTEGER NOT NULL DEFAULT 1
-        \\)
-    , .empty);
-
-    _ = try db.run(
-        \\CREATE TABLE IF NOT EXISTS users (
-        \\  username TEXT PRIMARY KEY,
-        \\  password TEXT NOT NULL
-        \\)
-    , .empty);
-
-    _ = try db.run(
-        \\CREATE TABLE IF NOT EXISTS votes (
-        \\  username TEXT NOT NULL,
-        \\  item_id INTEGER NOT NULL,
-        \\  PRIMARY KEY (username, item_id)
-        \\)
-    , .empty);
-}
-
 pub fn storyCount(allocator: std.mem.Allocator) !i64 {
     var stmt = try db.query("SELECT COUNT(*) AS cnt FROM stories");
     defer stmt.deinit();

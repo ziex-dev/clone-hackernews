@@ -11,3 +11,5 @@ node_modules
 
 # Wrangler
 .wrangler/
+# Localflare generated files
+.localflare/

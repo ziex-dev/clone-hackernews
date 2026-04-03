@@ -175,27 +175,9 @@ pub const Store = struct {
     }
 };
 
-var db_initialized = false;
-
 pub fn get(allocator: std.mem.Allocator) !*Store {
     const s = try allocator.create(Store);
     s.* = .{ .allocator = allocator };
-
-    if (!db_initialized) {
-        try query.init();
-
-        if ((try query.storyCount(allocator)) == 0) {
-            const story1_id = try s.addStory("Ziex: A full-stack web framework for Zig", null, null, "nurulhudaapon");
-            _ = try s.addStory("Show HN: Exact Hacker News Clone in Ziex", null, "I built this clone to show off Ziex.", "nurulhudaapon");
-            _ = try s.addStory("Zig 0.15.2 Released", "https://ziglang.org/download/0.15.1/release-notes.html", null, "andrewrk");
-
-            const c1_id = try s.addComment(story1_id, null, "user1", "This looks amazing!");
-            _ = try s.addComment(story1_id, null, "user2", "Zig is the future of web dev.");
-            _ = try s.addComment(story1_id, c1_id, "user3", "I agree!");
-        }
-
-        db_initialized = true;
-    }
 
     return s;
 }

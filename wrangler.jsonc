@@ -8,8 +8,10 @@
 	},
 	"compatibility_date": "2026-03-10",
 	"compatibility_flags": [
-		"nodejs_compat"
 	],
+	"placement": {
+		"region": "aws:ap-southeast-1"
+	},
 	"kv_namespaces": [
 		{
 			"binding": "KV"
@@ -18,6 +20,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
+			"database_name": "hackernews",
+			"migrations_dir": "./app/db/migrations"
 		}
 	],
 	"assets": {
