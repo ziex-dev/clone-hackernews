@@ -4,7 +4,6 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
 
     // Handle login/logout POST actions
     if (ctx.request.method == .POST) {
-        zx.log.info("Method: POST", .{});
         handleAction(ctx);
     }
 
@@ -66,17 +65,9 @@ fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
     const fd = ctx.request.formData();
     const action = fd.get("action") orelse return;
 
-
-
-    zx.log.info("Handling action: {s}", .{action});
-    zx.log.info("Form data: {s}", .{fd.get("Login") orelse "N/A"});
-
     if (std.mem.eql(u8, action, "Login")) {
         const username = fd.get("username") orelse return;
         const password = fd.get("password") orelse return;
-
-        zx.log.info("Username: {s}", .{username});
-        zx.log.info("Password: {s}", .{password});
         if (username.len == 0) return;
 
         const s = data.get(ctx.allocator) catch return;
@@ -92,21 +83,17 @@ fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
         const cookie_val = std.fmt.allocPrint(ctx.arena, "{s}:{s}", .{ username, password }) catch return;
         ctx.response.cookies.set("session", cookie_val, .{ .path = "/", .max_age = 3600 * 24 * 7 });
 
-        zx.log.info("User {s} logged in successfully", .{cookie_val});
-        // ctx.response.redirect("/", 302);
+        ctx.response.redirect("/", 302);
     } else if (std.mem.eql(u8, action, "Create Account")) {
         const username = fd.get("username") orelse return;
         const password = fd.get("password") orelse return;
         if (username.len == 0 or password.len == 0) return;
-     zx.log.info("Username: {s}", .{username});
-        zx.log.info("Password: {s}", .{password});
         const s = data.get(ctx.allocator) catch return;
         if (s.getUser(username) != null) {
             ctx.response.redirect("/login?msg=Username already taken", 302);
             return;
         }
 
-     zx.log.info("adding user: {s}", .{username});
         s.addUser(username, password) catch |e| {
             zx.log.err("Error adding user: {s}", .{@errorName(e)});
             ctx.response.redirect("/login?msg=Error creating account", 302);
