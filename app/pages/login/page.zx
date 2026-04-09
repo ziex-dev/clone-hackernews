@@ -2,9 +2,19 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
     const auth = ctx.state;
     const msg = ctx.request.searchParams.get("msg");
 
-    // Handle login/logout POST actions
-    if (ctx.request.method == .POST) {
-        handleAction(ctx);
+    if (auth.is_authenticated) {
+        return (
+            <div @allocator={ctx.arena}>
+                <p>Welcome, <strong>{auth.username}</strong>!</p>
+                <form action={handleLogout}>
+                    <input
+                        type="submit"
+                        name="action"
+                        value="Logout"
+                    />
+                </form>
+            </div>
+        );
     }
 
     return (
@@ -12,8 +22,12 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
             {if (auth.is_authenticated) (
                 <div>
                     <p>Welcome, <strong>{auth.username}</strong>!</p>
-                    <form method="post" action="/login">
-                        <input type="submit" name="action" value="Logout" />
+                    <form action={handleLogout}>
+                        <input
+                            type="submit"
+                            name="action"
+                            value="Logout"
+                        />
                     </form>
                 </div>
             ) else (
@@ -21,13 +35,23 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
                     <b>Login</b>
                     <br /><br />
                     {if (msg != null) (
-                        <p style="color: red; font-size:d 14px; margin-bottom: 15px;">{msg}</p>
+                        <p style="color: red; font-size: 14px; margin-bottom: 15px;">{msg}</p>
                     )}
-                    <form method="post" action="/login" style="margin-bottom:2em;">
+                    <form action={handleLogin} style="margin-bottom:2em;">
                         <table border="0">
                             <tr>
                                 <td>username:</td>
-                                <td><input type="text" name="username" size="20" autocorrect="off" spellcheck="false" autocapitalize="off" autofocus="true" /></td>
+                                <td>
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        size="20"
+                                        autocorrect="off"
+                                        spellcheck="false"
+                                        autocapitalize="off"
+                                        autofocus="true"
+                                    />
+                                </td>
                             </tr>
                             <tr>
                                 <td>password:</td>
@@ -41,19 +65,38 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
                     <br /><br />
                     <b>Create Account</b>
                     <br /><br />
-                    <form method="post" action="/login">
+                    <form action={handleSignup}>
                         <table border="0">
                             <tr>
                                 <td>username:</td>
-                                <td><input type="text" name="username" size="20" autocorrect="off" spellcheck="false" autocapitalize="off" /></td>
+                                <td>
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        size="20"
+                                        autocorrect="off"
+                                        spellcheck="false"
+                                        autocapitalize="off"
+                                    />
+                                </td>
                             </tr>
                             <tr>
                                 <td>password:</td>
-                                <td><input type="password" name="password" size="20" /></td>
+                                <td>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        size="20"
+                                    />
+                                </td>
                             </tr>
                         </table>
                         <br />
-                        <input type="submit" name="action" value="Create Account" />
+                        <input
+                            type="submit"
+                            name="action"
+                            value="Create Account"
+                        />
                     </form>
                 </fragment>
             )}
@@ -61,59 +104,60 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
     );
 }
 
-fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
-    const fd = ctx.request.formData();
-    const action = fd.get("action") orelse return;
+const AuthInput = struct {
+    username: []const u8,
+    password: []const u8,
+};
 
-    if (std.mem.eql(u8, action, "Login")) {
-        const username = fd.get("username") orelse return;
-        const password = fd.get("password") orelse return;
-        if (username.len == 0) return;
+fn handleLogin(ctx: zx.server.Action) void {
+    const fd = ctx.data(AuthInput);
+    if (fd.username.len == 0) return;
 
-        const s = data.get(ctx.allocator) catch return;
-        const user = s.getUser(username) orelse {
-            ctx.response.redirect("/login?msg=Invalid username or password", 302);
-            return;
-        };
-        if (!std.mem.eql(u8, user.password, password)) {
-            ctx.response.redirect("/login?msg=Invalid username or password", 302);
-            return;
-        }
-
-        const cookie_val = std.fmt.allocPrint(ctx.arena, "{s}:{s}", .{ username, password }) catch return;
-        ctx.response.cookies.set("session", cookie_val, .{ .path = "/", .max_age = 3600 * 24 * 7 });
-
-        ctx.response.redirect("/", 302);
-    } else if (std.mem.eql(u8, action, "Create Account")) {
-        const username = fd.get("username") orelse return;
-        const password = fd.get("password") orelse return;
-        if (username.len == 0 or password.len == 0) return;
-        const s = data.get(ctx.allocator) catch return;
-        if (s.getUser(username) != null) {
-            ctx.response.redirect("/login?msg=Username already taken", 302);
-            return;
-        }
-
-        s.addUser(username, password) catch |e| {
-            zx.log.err("Error adding user: {s}", .{@errorName(e)});
-            ctx.response.redirect("/login?msg=Error creating account", 302);
-            return;
-        };
-        const cookie_val = std.fmt.allocPrint(ctx.arena, "{s}:{s}", .{ username, password }) catch return;
-        ctx.response.cookies.set("session", cookie_val, .{ .path = "/", .max_age = 3600 * 24 * 7 });
-        ctx.response.redirect("/", 302);
-    } else if (std.mem.eql(u8, action, "Logout")) {
-        ctx.response.cookies.delete("session", .{ .path = "/" });
-        ctx.response.redirect("/login", 302);
+    const s = data.get(ctx.allocator) catch return;
+    const user = s.getUser(fd.username) orelse {
+        ctx.response.redirect("/login?msg=Invalid username or password", 302);
+        return;
+    };
+    if (!std.mem.eql(u8, user.password, fd.password)) {
+        ctx.response.redirect("/login?msg=Invalid username or password", 302);
+        return;
     }
+
+    const cookie_val = std.fmt.allocPrint(ctx.arena, "{s}:{s}", .{ fd.username, fd.password }) catch return;
+    ctx.response.cookies.set("session", cookie_val, .{ .path = "/", .max_age = 3600 * 24 * 7 });
+    ctx.response.redirect("/", 302);
 }
 
-const AuthState = @import("../proxy.zig").AuthState;
+fn handleSignup(ctx: zx.server.Action) void {
+    const fd = ctx.data(AuthInput);
+    if (fd.username.len == 0 or fd.password.len == 0) return;
+
+    const s = data.get(ctx.allocator) catch return;
+    if (s.getUser(fd.username) != null) {
+        ctx.response.redirect("/login?msg=Username already taken", 302);
+        return;
+    }
+
+    s.addUser(fd.username, fd.password) catch |e| {
+        zx.log.err("Error adding user: {s}", .{@errorName(e)});
+        ctx.response.redirect("/login?msg=Error creating account", 302);
+        return;
+    };
+    const cookie_val = std.fmt.allocPrint(ctx.arena, "{s}:{s}", .{ fd.username, fd.password }) catch return;
+    ctx.response.cookies.set("session", cookie_val, .{ .path = "/", .max_age = 3600 * 24 * 7 });
+    ctx.response.redirect("/", 302);
+}
+
+fn handleLogout(ctx: zx.server.Action) void {
+    ctx.response.cookies.delete("session", .{ .path = "/", .max_age = 0 });
+    ctx.response.redirect("/", 302);
+}
 
 pub const options = zx.PageOptions{
     .methods = &.{ .GET, .POST },
 };
 
+const AuthState = @import("../proxy.zig").AuthState;
 const zx = @import("zx");
 const std = @import("std");
 const data = @import("../../data.zig");
