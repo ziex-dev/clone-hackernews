@@ -1,5 +1,4 @@
-pub fn Layout(ctx: zx.LayoutCtx(void, AuthState), children: zx.Component) zx.Component {
-    const auth = ctx.state;
+pub fn Layout(ctx: zx.LayoutContext, children: zx.Component, _: void, auth: AuthState) zx.Component {
     const path = ctx.request.pathname;
 
     return (

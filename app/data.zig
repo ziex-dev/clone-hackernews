@@ -149,14 +149,14 @@ pub const Store = struct {
 
     // Mutations
     pub fn addStory(_: *Store, title: []const u8, url: ?[]const u8, text: ?[]const u8, author: []const u8) !usize {
-        const time = std.time.timestamp();
-        const rowid = try query.insertStory(title, url, text, author, time);
+        const time = std.Io.Timestamp.now(zx.io(), .awake);
+        const rowid = try query.insertStory(title, url, text, author, time.toMilliseconds());
         return @intCast(rowid);
     }
 
     pub fn addComment(_: *Store, story_id: usize, parent_id: ?usize, author: []const u8, text: []const u8) !usize {
-        const time = std.time.timestamp();
-        const rowid = try query.insertComment(story_id, parent_id, author, text, time);
+        const time = std.Io.Timestamp.now(zx.io(), .awake);
+        const rowid = try query.insertComment(story_id, parent_id, author, text, time.toMilliseconds());
         return @intCast(rowid);
     }
 

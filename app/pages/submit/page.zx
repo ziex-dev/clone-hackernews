@@ -1,5 +1,5 @@
-pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
-    handleAction(ctx);
+pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
+    handleAction(ctx, auth);
 
     return (
         <table @allocator={ctx.arena} border="0" cellpadding="0" cellspacing="0">
@@ -49,7 +49,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
     );
 }
 
-fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
+fn handleAction(ctx: zx.PageContext, state: AuthState) void {
     if (ctx.request.method != .POST) return;
 
     const fd = ctx.request.formData();
@@ -58,7 +58,7 @@ fn handleAction(ctx: zx.PageCtx(void, AuthState)) void {
     const text = fd.get("text");
 
     const s = store.get(ctx.allocator) catch return;
-    const username = ctx.state.username orelse "guest";
+    const username = state.username orelse "guest";
 
     _ = s.addStory(title, if (url != null and url.?.len > 0) url else null, if (text != null and text.?.len > 0) text else null, username) catch return;
 

@@ -65,7 +65,7 @@ fn getHost(url: []const u8) []const u8 {
 }
 
 fn timeAgo(timestamp: i64) []const u8 {
-    const now = std.time.timestamp();
+    const now = std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds();
     const diff = @max(0, now - timestamp);
     if (diff < 60) return "just now";
     if (diff < 3600) return "minutes ago";

@@ -7,10 +7,10 @@
     "dev": "wrangler dev --live-reload"
   },
   "dependencies": {
-    "ziex": "^0.1.0-dev.987"
+    "ziex": "0.1.0-dev.1068"
   },
   "devDependencies": {
-    "wrangler": "^4.80.0",
-    "@zigc/cli": "0.15.20"
+    "wrangler": "4.95.0",
+    "@zigc/cli": "0.16.0"
   }
 }

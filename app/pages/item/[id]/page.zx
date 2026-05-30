@@ -1,4 +1,4 @@
-pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
     const id = ctx.request.params.as("id", usize) orelse {
         return (<div @allocator={ctx.arena}>Not Found</div>);
     };
@@ -8,7 +8,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
         return (<div @allocator={ctx.arena}>Not Found</div>);
     };
 
-    if (ctx.request.method == .POST) try handleAddComment(ctx);
+    if (ctx.request.method == .POST) try handleAddComment(ctx, auth);
     
     try s.loadCommentsForStory(item.id);
     const comments = try getCommentsForStory(ctx.arena, s, item.id);
@@ -19,7 +19,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
                 <tr class="athing" id=`{item.id}`>
                     <td valign="top" class="votelinks">
                         <center>
-                            {if (ctx.state.is_authenticated and !s.hasVoted(ctx.state.username.?, item.id)) (
+                            {if (auth.is_authenticated and !s.hasVoted(auth.username.?, item.id)) (
                                 <a id=`up_{item.id}` href=`/vote?id={item.id}&how=up`>
                                     <div class="votearrow" title="upvote"></div>
                                 </a>
@@ -78,14 +78,14 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 
             <table border="0" class="comment-tree">
                 {for (comments) |comment| (
-                    <CommentComponent comment={comment} store={s} indent={0} username={ctx.state.username} />
+                    <CommentComponent comment={comment} store={s} indent={0} username={auth.username} />
                 )}
             </table>
         </fragment>
     );
 }
 
-pub fn handleAddComment(ctx: zx.PageCtx(void, AuthState)) !void {
+pub fn handleAddComment(ctx: zx.PageContext, auth: AuthState) !void {
     const form = ctx.request.formData();
     const story_id_str = form.get("story_id") orelse return;
     const story_id = std.fmt.parseInt(usize, story_id_str, 10) catch return;
@@ -94,16 +94,16 @@ pub fn handleAddComment(ctx: zx.PageCtx(void, AuthState)) !void {
     if (text.len == 0) return;
 
     const s = try store.get(ctx.allocator);
-    const username = ctx.state.username orelse "guest";
+    const username = auth.username orelse "guest";
     _ = try s.addComment(story_id, null, username, text);
 
-    const redirect_url = try std.fmt.allocPrint(ctx.arena, "/item/{d}?t={d}", .{ story_id, std.time.timestamp() });
+    const redirect_url = try std.fmt.allocPrint(ctx.arena, "/item/{d}?t={d}", .{ story_id, std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds() });
     ctx.response.setHeader("Location", redirect_url);
     ctx.response.setStatus(.found);
 }
 
 fn getCommentsForStory(allocator: std.mem.Allocator, s: *store.Store, story_id: usize) ![]store.Comment {
-    var list = std.ArrayListUnmanaged(store.Comment){};
+    var list = std.ArrayListUnmanaged(store.Comment).empty;
     var it = s.comments.iterator();
     while (it.next()) |entry| {
         if (entry.value_ptr.story_id == story_id and entry.value_ptr.parent_id == null) {
@@ -181,7 +181,7 @@ pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: s
 }
 
 fn getSortedReplies(allocator: std.mem.Allocator, s: *store.Store, reply_ids: []usize) ![]store.Comment {
-    var list = std.ArrayListUnmanaged(store.Comment){};
+    var list = std.ArrayListUnmanaged(store.Comment).empty;
     for (reply_ids) |id| {
         if (s.comments.get(id)) |c| {
             try list.append(allocator, c);
@@ -205,7 +205,7 @@ fn getHost(url: []const u8) []const u8 {
 }
 
 fn timeAgo(timestamp: i64) []const u8 {
-    const now = std.time.timestamp();
+    const now = std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds();
     const diff = @max(0, now - timestamp);
 
     if (diff < 60) return "just now";

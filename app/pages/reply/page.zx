@@ -1,5 +1,5 @@
-pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
-    const id_opt = ctx.request.searchParams.get("id");
+pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
+    const id_opt = ctx.request.queries.get("id");
     if (id_opt == null) {
         return (<div @allocator={ctx.arena}>Not Found</div>);
     }
@@ -17,10 +17,10 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
         const form = ctx.request.formData();
         const text = form.get("text") orelse "";
         if (text.len > 0) {
-            const username = ctx.state.username orelse "guest";
+            const username = auth.username orelse "guest";
             _ = try s.addComment(comment.story_id, comment.id, username, text);
 
-            const redirect_url = try std.fmt.allocPrint(ctx.arena, "/item/{d}?t={d}", .{ comment.story_id, std.time.timestamp() });
+            const redirect_url = try std.fmt.allocPrint(ctx.arena, "/item/{d}?t={d}", .{ comment.story_id, std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds() });
             ctx.response.setHeader("Location", redirect_url);
             ctx.response.setStatus(.found);
             return (<div>Redirecting...</div>);
@@ -32,7 +32,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
             <tr>
                 <td class="votelinks" valign="top">
                     <center>
-                        {if (ctx.state.is_authenticated and !s.hasVoted(ctx.state.username.?, comment.id)) (
+                        {if (auth.is_authenticated and !s.hasVoted(auth.username.?, comment.id)) (
                             <a id=`up_{comment.id}` href=`/vote?id={comment.id}&how=up`>
                                 <div class="votearrow" title="upvote"></div>
                             </a>
@@ -65,7 +65,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 }
 
 fn timeAgo(timestamp: i64) []const u8 {
-    const now = std.time.timestamp();
+    const now = std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds();
     const diff = @max(0, now - timestamp);
     if (diff < 60) return "just now";
     if (diff < 3600) return "minutes ago";

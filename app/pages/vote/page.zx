@@ -1,5 +1,5 @@
-pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
-    const id_str = ctx.request.searchParams.get("id") orelse {
+pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
+    const id_str = ctx.request.queries.get("id") orelse {
         return (<div @allocator={ctx.arena}>Missing ID</div>);
     };
     const id = std.fmt.parseInt(usize, id_str, 10) catch {
@@ -7,7 +7,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
     };
 
     const s = try store.get(ctx.allocator);
-    const username = ctx.state.username orelse {
+    const username = auth.username orelse {
         const msg = "You must be logged in to vote.";
         const redirect_url = try std.fmt.allocPrint(ctx.arena, "/login?msg={s}", .{msg});
         ctx.response.setHeader("Location", redirect_url);
@@ -19,7 +19,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 
     const referer = ctx.request.headers.get("referer") orelse "/";
     const separator = if (std.mem.indexOfScalar(u8, referer, '?') == null) "?" else "&";
-    const redirect_url = try std.fmt.allocPrint(ctx.arena, "{s}{s}t={d}", .{ referer, separator, std.time.timestamp() });
+    const redirect_url = try std.fmt.allocPrint(ctx.arena, "{s}{s}t={d}", .{ referer, separator, std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds() });
 
     ctx.response.setHeader("Location", redirect_url);
     ctx.response.setStatus(.found);

@@ -1,7 +1,7 @@
-pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
+pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
     const s = try store.get(ctx.allocator);
 
-    const p_str = ctx.request.searchParams.get("p") orelse "1";
+    const p_str = ctx.request.queries.get("p") orelse "1";
     const page = std.fmt.parseInt(usize, p_str, 10) catch 1;
     const page_size = 30;
 
@@ -17,7 +17,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
                     <tr class="athing">
                         <td class="votelinks" valign="top">
                             <center>
-                                {if (ctx.state.is_authenticated and !s.hasVoted(ctx.state.username.?, comment.id)) (
+                                {if (auth.is_authenticated and !s.hasVoted(auth.username.?, comment.id)) (
                                     <a id=`up_{comment.id}` href=`/vote?id={comment.id}&how=up`>
                                         <div class="votearrow" title="upvote"></div>
                                     </a>
@@ -62,7 +62,7 @@ pub fn Page(ctx: zx.PageCtx(void, AuthState)) !zx.Component {
 }
 
 fn timeAgo(timestamp: i64) []const u8 {
-    const now = std.time.timestamp();
+    const now = std.Io.Timestamp.now(zx.io(), .awake).toMilliseconds();
     const diff = @max(0, now - timestamp);
     if (diff < 60) return "just now";
     if (diff < 3600) return "minutes ago";

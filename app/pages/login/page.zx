@@ -1,6 +1,5 @@
-pub fn Page(ctx: zx.PageCtx(void, AuthState)) zx.Component {
-    const auth = ctx.state;
-    const msg = ctx.request.searchParams.get("msg");
+pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) zx.Component {
+    const msg = ctx.request.queries.get("msg");
 
     if (auth.is_authenticated) {
         return (
