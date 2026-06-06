@@ -2,16 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const query = @import("query.zig");
 
-pub const Story = struct {
-    id: usize,
-    title: []const u8,
-    url: ?[]const u8 = null,
-    text: ?[]const u8 = null,
-    author: []const u8,
-    score: i32,
-    comment_count: usize,
-    time: i64,
-};
+pub const Story = query.StoryRow;
 
 pub const Comment = struct {
     id: usize,
@@ -22,12 +13,21 @@ pub const Comment = struct {
     time: i64,
     score: i32 = 1,
     replies: []usize = &.{},
+
+    fn fromRow(row: query.CommentRow) Comment {
+        return .{
+            .id = row.id,
+            .story_id = row.story_id,
+            .parent_id = row.parent_id,
+            .author = row.author,
+            .text = row.text,
+            .time = row.time,
+            .score = row.score,
+        };
+    }
 };
 
-pub const User = struct {
-    username: []const u8,
-    password: []const u8,
-};
+pub const User = query.UserRow;
 
 pub const PagedStories = struct {
     stories: []Story,
@@ -82,21 +82,17 @@ pub const Store = struct {
 
     // Single item lookups
     pub fn getStoryById(self: *Store, id: usize) ?Story {
-        const row = query.storyByIdQuery(self.allocator, id) catch return null;
-        if (row) |r| return rowToStory(r);
-        return null;
+        return query.storyByIdQuery(self.allocator, id) catch return null;
     }
 
     pub fn getCommentById(self: *Store, id: usize) ?Comment {
         const row = query.commentByIdQuery(self.allocator, id) catch return null;
-        if (row) |r| return rowToComment(r);
+        if (row) |r| return Comment.fromRow(r);
         return null;
     }
 
     pub fn getUser(self: *Store, username: []const u8) ?User {
-        const result = query.getUser(self.allocator, username) catch return null;
-        if (result) |r| return User{ .username = r.username, .password = r.password };
-        return null;
+        return query.getUser(self.allocator, username) catch return null;
     }
 
     pub fn hasVoted(self: *Store, username: []const u8, item_id: usize) bool {
@@ -107,27 +103,13 @@ pub const Store = struct {
     pub fn loadCommentsForStory(self: *Store, story_id: usize) !void {
         const rows = try query.commentsForStoryQuery(self.allocator, story_id);
         for (rows) |row| {
-            const id: usize = @intCast(asInt(row, "id"));
-            const parent_id_val = asInt(row, "parent_id");
-            const parent_id: ?usize = if (parent_id_val > 0) @intCast(parent_id_val) else null;
-            try self.comments.put(self.allocator, id, .{
-                .id = id,
-                .story_id = @intCast(asInt(row, "story_id")),
-                .parent_id = parent_id,
-                .author = asText(row, "author"),
-                .text = asText(row, "text"),
-                .time = asInt(row, "time"),
-                .score = @intCast(asInt(row, "score")),
-            });
+            try self.comments.put(self.allocator, row.id, Comment.fromRow(row));
         }
         for (rows) |row| {
-            const parent_id_val = asInt(row, "parent_id");
-            if (parent_id_val > 0) {
-                const parent_id: usize = @intCast(parent_id_val);
-                const child_id: usize = @intCast(asInt(row, "id"));
+            if (row.parent_id) |parent_id| {
                 if (self.comments.getPtr(parent_id)) |p| {
                     const new_replies = try self.allocator.realloc(p.replies, p.replies.len + 1);
-                    new_replies[new_replies.len - 1] = child_id;
+                    new_replies[new_replies.len - 1] = row.id;
                     p.replies = new_replies;
                 }
             }
@@ -142,7 +124,7 @@ pub const Store = struct {
         const display_rows = if (has_more) rows[0..page_size] else rows;
         var comments = try allocator.alloc(Comment, display_rows.len);
         for (display_rows, 0..) |row, i| {
-            comments[i] = rowToComment(row);
+            comments[i] = Comment.fromRow(row);
         }
         return .{ .comments = comments, .has_more = has_more };
     }
@@ -182,60 +164,9 @@ pub fn get(allocator: std.mem.Allocator) !*Store {
     return s;
 }
 
-fn rowsToPagedStories(allocator: std.mem.Allocator, rows: []const zx.Db.Row, page_size: usize) !PagedStories {
+fn rowsToPagedStories(allocator: std.mem.Allocator, rows: []const Story, page_size: usize) !PagedStories {
     const has_more = rows.len > page_size;
     const display_rows = if (has_more) rows[0..page_size] else rows;
-    var stories = try allocator.alloc(Story, display_rows.len);
-    for (display_rows, 0..) |row, i| {
-        stories[i] = rowToStory(row);
-    }
+    const stories = try allocator.dupe(Story, display_rows);
     return .{ .stories = stories, .has_more = has_more };
-}
-
-fn rowToStory(row: zx.Db.Row) Story {
-    return .{
-        .id = @intCast(asInt(row, "id")),
-        .title = asText(row, "title"),
-        .url = asOptionalText(row, "url"),
-        .text = asOptionalText(row, "text"),
-        .author = asText(row, "author"),
-        .score = @intCast(asInt(row, "score")),
-        .comment_count = @intCast(asInt(row, "comment_count")),
-        .time = asInt(row, "time"),
-    };
-}
-
-fn rowToComment(row: zx.Db.Row) Comment {
-    const parent_id_val = asInt(row, "parent_id");
-    return .{
-        .id = @intCast(asInt(row, "id")),
-        .story_id = @intCast(asInt(row, "story_id")),
-        .parent_id = if (parent_id_val > 0) @intCast(parent_id_val) else null,
-        .author = asText(row, "author"),
-        .text = asText(row, "text"),
-        .time = asInt(row, "time"),
-        .score = @intCast(asInt(row, "score")),
-    };
-}
-
-fn asInt(row: zx.Db.Row, name: []const u8) i64 {
-    return switch (row.get(name) orelse .null) {
-        .integer => |value| value,
-        .float => |value| @intFromFloat(value),
-        else => 0,
-    };
-}
-
-fn asText(row: zx.Db.Row, name: []const u8) []const u8 {
-    return switch (row.get(name) orelse .null) {
-        .text => |value| value,
-        else => "",
-    };
-}
-
-fn asOptionalText(row: zx.Db.Row, name: []const u8) ?[]const u8 {
-    return switch (row.get(name) orelse .null) {
-        .text => |value| value,
-        else => null,
-    };
 }
