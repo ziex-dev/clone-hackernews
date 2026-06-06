@@ -182,7 +182,7 @@ pub fn get(allocator: std.mem.Allocator) !*Store {
     return s;
 }
 
-fn rowsToPagedStories(allocator: std.mem.Allocator, rows: []const zx.db.Row, page_size: usize) !PagedStories {
+fn rowsToPagedStories(allocator: std.mem.Allocator, rows: []const zx.Db.Row, page_size: usize) !PagedStories {
     const has_more = rows.len > page_size;
     const display_rows = if (has_more) rows[0..page_size] else rows;
     var stories = try allocator.alloc(Story, display_rows.len);
@@ -192,7 +192,7 @@ fn rowsToPagedStories(allocator: std.mem.Allocator, rows: []const zx.db.Row, pag
     return .{ .stories = stories, .has_more = has_more };
 }
 
-fn rowToStory(row: zx.db.Row) Story {
+fn rowToStory(row: zx.Db.Row) Story {
     return .{
         .id = @intCast(asInt(row, "id")),
         .title = asText(row, "title"),
@@ -205,7 +205,7 @@ fn rowToStory(row: zx.db.Row) Story {
     };
 }
 
-fn rowToComment(row: zx.db.Row) Comment {
+fn rowToComment(row: zx.Db.Row) Comment {
     const parent_id_val = asInt(row, "parent_id");
     return .{
         .id = @intCast(asInt(row, "id")),
@@ -218,7 +218,7 @@ fn rowToComment(row: zx.db.Row) Comment {
     };
 }
 
-fn asInt(row: zx.db.Row, name: []const u8) i64 {
+fn asInt(row: zx.Db.Row, name: []const u8) i64 {
     return switch (row.get(name) orelse .null) {
         .integer => |value| value,
         .float => |value| @intFromFloat(value),
@@ -226,14 +226,14 @@ fn asInt(row: zx.db.Row, name: []const u8) i64 {
     };
 }
 
-fn asText(row: zx.db.Row, name: []const u8) []const u8 {
+fn asText(row: zx.Db.Row, name: []const u8) []const u8 {
     return switch (row.get(name) orelse .null) {
         .text => |value| value,
         else => "",
     };
 }
 
-fn asOptionalText(row: zx.db.Row, name: []const u8) ?[]const u8 {
+fn asOptionalText(row: zx.Db.Row, name: []const u8) ?[]const u8 {
     return switch (row.get(name) orelse .null) {
         .text => |value| value,
         else => null,

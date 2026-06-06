@@ -1,66 +1,49 @@
 const zx = @import("zx");
 
-const db = zx.db;
-const Bindings = db.Bindings;
-const Value = db.Value;
-const Row = db.Row;
+const Value = zx.Db.Value;
+const Row = zx.Db.Row;
 
 pub fn storyCount(allocator: std.mem.Allocator) !i64 {
-    var stmt = try db.query("SELECT COUNT(*) AS cnt FROM stories");
+    var stmt = try zx.db.prepare("SELECT COUNT(*) AS cnt FROM stories");
     defer stmt.deinit();
-    const row = (try stmt.get(allocator, .empty)) orelse return 0;
+    const row = (try stmt.get(allocator, .{})) orelse return 0;
     return asInt(row, "cnt");
 }
 
 pub fn insertStory(title: []const u8, url: ?[]const u8, text: ?[]const u8, author: []const u8, time: i64) !i64 {
-    const result = try db.run(
+    const result = try zx.db.run(
         "INSERT INTO stories (title, url, text, author, time) VALUES (?, ?, ?, ?, ?)",
-        .{ .positional = &.{
-            .{ .text = title },
-            if (url) |u| Value{ .text = u } else .null,
-            if (text) |t| Value{ .text = t } else .null,
-            .{ .text = author },
-            .{ .integer = time },
-        } },
+        .{ title, url, text, author, time },
     );
-    return result.last_insert_rowid;
+    return result.last_insert_id;
 }
 
 pub fn insertComment(story_id: usize, parent_id: ?usize, author: []const u8, text: []const u8, time: i64) !i64 {
-    const result = try db.run(
+    const result = try zx.db.run(
         "INSERT INTO comments (story_id, parent_id, author, text, time) VALUES (?, ?, ?, ?, ?)",
-        .{ .positional = &.{
-            .{ .integer = @intCast(story_id) },
-            if (parent_id) |p| Value{ .integer = @intCast(p) } else .null,
-            .{ .text = author },
-            .{ .text = text },
-            .{ .integer = time },
-        } },
+        .{ story_id, parent_id, author, text, time },
     );
 
     // Increment comment_count on the story
-    _ = try db.run(
+    _ = try zx.db.run(
         "UPDATE stories SET comment_count = comment_count + 1 WHERE id = ?",
-        .{ .positional = &.{.{ .integer = @intCast(story_id) }} },
+        .{story_id},
     );
 
-    return result.last_insert_rowid;
+    return result.last_insert_id;
 }
 
 pub fn insertUser(username: []const u8, password: []const u8) !void {
-    _ = try db.run(
+    _ = try zx.db.run(
         "INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)",
-        .{ .positional = &.{
-            .{ .text = username },
-            .{ .text = password },
-        } },
+        .{ username, password },
     );
 }
 
 pub fn getUser(allocator: zx.Allocator, username: []const u8) !?struct { username: []const u8, password: []const u8 } {
-    var stmt = try db.prepare("SELECT username, password FROM users WHERE username = ?");
+    var stmt = try zx.db.prepare("SELECT username, password FROM users WHERE username = ?");
     defer stmt.deinit();
-    const row = (try stmt.get(allocator, .{ .positional = &.{.{ .text = username }} })) orelse return null;
+    const row = (try stmt.get(allocator, .{username})) orelse return null;
     return .{
         .username = asText(row, "username"),
         .password = asText(row, "password"),
@@ -68,161 +51,126 @@ pub fn getUser(allocator: zx.Allocator, username: []const u8) !?struct { usernam
 }
 
 pub fn insertVote(username: []const u8, item_id: usize) !void {
-    _ = try db.run(
+    _ = try zx.db.run(
         "INSERT OR IGNORE INTO votes (username, item_id) VALUES (?, ?)",
-        .{ .positional = &.{
-            .{ .text = username },
-            .{ .integer = @intCast(item_id) },
-        } },
+        .{ username, item_id },
     );
 }
 
 pub fn hasVoted(allocator: zx.Allocator, username: []const u8, item_id: usize) !bool {
-    var stmt = try db.prepare("SELECT 1 AS found FROM votes WHERE username = ? AND item_id = ?");
+    var stmt = try zx.db.prepare("SELECT 1 AS found FROM votes WHERE username = ? AND item_id = ?");
     defer stmt.deinit();
-    const row = try stmt.get(allocator, .{ .positional = &.{
-        .{ .text = username },
-        .{ .integer = @intCast(item_id) },
-    } });
+    const row = try stmt.get(allocator, .{ username, item_id });
     return row != null;
 }
 
 pub fn upvoteStory(item_id: usize) !void {
-    _ = try db.run(
+    _ = try zx.db.run(
         "UPDATE stories SET score = score + 1 WHERE id = ?",
-        .{ .positional = &.{.{ .integer = @intCast(item_id) }} },
+        .{item_id},
     );
 }
 
 pub fn upvoteComment(item_id: usize) !void {
-    _ = try db.run(
+    _ = try zx.db.run(
         "UPDATE comments SET score = score + 1 WHERE id = ?",
-        .{ .positional = &.{.{ .integer = @intCast(item_id) }} },
+        .{item_id},
     );
 }
 
 pub fn isComment(allocator: zx.Allocator, item_id: usize) !bool {
-    var stmt = try db.prepare("SELECT 1 AS found FROM comments WHERE id = ?");
+    var stmt = try zx.db.prepare("SELECT 1 AS found FROM comments WHERE id = ?");
     defer stmt.deinit();
-    const row = try stmt.get(allocator, .{ .positional = &.{.{ .integer = @intCast(item_id) }} });
+    const row = try stmt.get(allocator, .{item_id});
     return row != null;
 }
 
 pub fn allStories(allocator: zx.Allocator) ![]const Row {
-    var stmt = try db.query("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY id ASC");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY id ASC");
     defer stmt.deinit();
-    return try stmt.all(allocator, .empty);
+    return try stmt.all(allocator, .{});
 }
 
 pub fn allComments(allocator: zx.Allocator) ![]const Row {
-    var stmt = try db.query("SELECT id, story_id, parent_id, author, text, time, score FROM comments ORDER BY id ASC");
+    var stmt = try zx.db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments ORDER BY id ASC");
     defer stmt.deinit();
-    return try stmt.all(allocator, .empty);
+    return try stmt.all(allocator, .{});
 }
 
 pub fn commentReplies(allocator: zx.Allocator, parent_id: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id FROM comments WHERE parent_id = ? ORDER BY id ASC");
+    var stmt = try zx.db.prepare("SELECT id FROM comments WHERE parent_id = ? ORDER BY id ASC");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{.{ .integer = @intCast(parent_id) }} });
+    return try stmt.all(allocator, .{parent_id});
 }
 
 pub fn searchStories(allocator: zx.Allocator, search_query: []const u8) ![]const Row {
-    var stmt = try db.prepare(
+    var stmt = try zx.db.prepare(
         "SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE '%' || ? || '%' OR text LIKE '%' || ? || '%'",
     );
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .text = search_query },
-        .{ .text = search_query },
-    } });
+    return try stmt.all(allocator, .{ search_query, search_query });
 }
 
 pub fn storiesByScore(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY score DESC LIMIT ? OFFSET ?");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY score DESC LIMIT ? OFFSET ?");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ limit, offset });
 }
 
 pub fn storiesByNewest(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY id DESC LIMIT ? OFFSET ?");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY id DESC LIMIT ? OFFSET ?");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ limit, offset });
 }
 
 pub fn storiesByOldest(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY time ASC LIMIT ? OFFSET ?");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories ORDER BY time ASC LIMIT ? OFFSET ?");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ limit, offset });
 }
 
 pub fn storiesByTitlePrefix(allocator: std.mem.Allocator, prefix: []const u8, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .text = prefix },
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ prefix, limit, offset });
 }
 
 pub fn storiesByTitleKeywords(allocator: std.mem.Allocator, kw1: []const u8, kw2: []const u8, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE '%' || ? || '%' OR title LIKE '%' || ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE '%' || ? || '%' OR title LIKE '%' || ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .text = kw1 },
-        .{ .text = kw2 },
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ kw1, kw2, limit, offset });
 }
 
 pub fn paginatedSearchStories(allocator: std.mem.Allocator, search_query: []const u8, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare(
+    var stmt = try zx.db.prepare(
         "SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE title LIKE '%' || ? || '%' OR text LIKE '%' || ? || '%' ORDER BY id DESC LIMIT ? OFFSET ?",
     );
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .text = search_query },
-        .{ .text = search_query },
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ search_query, search_query, limit, offset });
 }
 
 pub fn storyByIdQuery(allocator: std.mem.Allocator, id: usize) !?Row {
-    var stmt = try db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE id = ?");
+    var stmt = try zx.db.prepare("SELECT id, title, url, text, author, score, comment_count, time FROM stories WHERE id = ?");
     defer stmt.deinit();
-    return try stmt.get(allocator, .{ .positional = &.{.{ .integer = @intCast(id) }} });
+    return try stmt.get(allocator, .{id});
 }
 
 pub fn commentsForStoryQuery(allocator: std.mem.Allocator, story_id: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments WHERE story_id = ? ORDER BY id ASC");
+    var stmt = try zx.db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments WHERE story_id = ? ORDER BY id ASC");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{.{ .integer = @intCast(story_id) }} });
+    return try stmt.all(allocator, .{story_id});
 }
 
 pub fn commentByIdQuery(allocator: std.mem.Allocator, id: usize) !?Row {
-    var stmt = try db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments WHERE id = ?");
+    var stmt = try zx.db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments WHERE id = ?");
     defer stmt.deinit();
-    return try stmt.get(allocator, .{ .positional = &.{.{ .integer = @intCast(id) }} });
+    return try stmt.get(allocator, .{id});
 }
 
 pub fn commentsPaginated(allocator: std.mem.Allocator, limit: usize, offset: usize) ![]const Row {
-    var stmt = try db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments ORDER BY time DESC LIMIT ? OFFSET ?");
+    var stmt = try zx.db.prepare("SELECT id, story_id, parent_id, author, text, time, score FROM comments ORDER BY time DESC LIMIT ? OFFSET ?");
     defer stmt.deinit();
-    return try stmt.all(allocator, .{ .positional = &.{
-        .{ .integer = @intCast(limit) },
-        .{ .integer = @intCast(offset) },
-    } });
+    return try stmt.all(allocator, .{ limit, offset });
 }
 
 const std = @import("std");
