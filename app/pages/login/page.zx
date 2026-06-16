@@ -112,7 +112,7 @@ fn handleLogin(ctx: zx.server.Action) void {
     const fd = ctx.data(AuthInput);
     if (fd.username.len == 0) return;
 
-    const s = data.get(ctx.allocator) catch return;
+    const s = data.get(ctx.arena) catch return;
     const user = s.getUser(fd.username) orelse {
         ctx.response.redirect("/login?msg=Invalid username or password", 302);
         return;
@@ -131,7 +131,7 @@ fn handleSignup(ctx: zx.server.Action) void {
     const fd = ctx.data(AuthInput);
     if (fd.username.len == 0 or fd.password.len == 0) return;
 
-    const s = data.get(ctx.allocator) catch return;
+    const s = data.get(ctx.arena) catch return;
     if (s.getUser(fd.username) != null) {
         ctx.response.redirect("/login?msg=Username already taken", 302);
         return;

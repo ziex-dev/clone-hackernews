@@ -3,7 +3,7 @@ pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
         return (<div @allocator={ctx.arena}>Not Found</div>);
     };
 
-    const s = try store.get(ctx.allocator);
+    const s = try store.get(ctx.arena);
     const item = s.getStoryById(id) orelse {
         return (<div @allocator={ctx.arena}>Not Found</div>);
     };
@@ -93,7 +93,7 @@ pub fn handleAddComment(ctx: zx.PageContext, auth: AuthState) !void {
 
     if (text.len == 0) return;
 
-    const s = try store.get(ctx.allocator);
+    const s = try store.get(ctx.arena);
     const username = auth.username orelse "guest";
     _ = try s.addComment(story_id, null, username, text);
 

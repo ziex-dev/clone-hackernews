@@ -57,7 +57,7 @@ fn handleAction(ctx: zx.PageContext, state: AuthState) void {
     const url = fd.get("url");
     const text = fd.get("text");
 
-    const s = store.get(ctx.allocator) catch return;
+    const s = store.get(ctx.arena) catch return;
     const username = state.username orelse "guest";
 
     _ = s.addStory(title, if (url != null and url.?.len > 0) url else null, if (text != null and text.?.len > 0) text else null, username) catch return;

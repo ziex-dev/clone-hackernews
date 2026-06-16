@@ -8,7 +8,7 @@ pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
         return (<div @allocator={ctx.arena}>Invalid ID</div>);
     };
 
-    const s = try store.get(ctx.allocator);
+    const s = try store.get(ctx.arena);
     const comment = s.getCommentById(id) orelse {
         return (<div @allocator={ctx.arena}>Comment Not Found</div>);
     };

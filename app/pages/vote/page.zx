@@ -6,7 +6,7 @@ pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
         return (<div @allocator={ctx.arena}>Invalid ID</div>);
     };
 
-    const s = try store.get(ctx.allocator);
+    const s = try store.get(ctx.arena);
     const username = auth.username orelse {
         const msg = "You must be logged in to vote.";
         const redirect_url = try std.fmt.allocPrint(ctx.arena, "/login?msg={s}", .{msg});

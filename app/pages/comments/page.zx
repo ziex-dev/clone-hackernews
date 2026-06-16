@@ -1,5 +1,5 @@
 pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
-    const s = try store.get(ctx.allocator);
+    const s = try store.get(ctx.arena);
 
     const p_str = ctx.request.queries.get("p") orelse "1";
     const page = std.fmt.parseInt(usize, p_str, 10) catch 1;

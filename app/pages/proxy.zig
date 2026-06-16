@@ -16,7 +16,7 @@ pub fn Proxy(ctx: *zx.ProxyContext) !void {
             const username = s[0..idx];
             const password = s[idx + 1 ..];
 
-            const s_store = data.get(ctx.allocator) catch null;
+            const s_store = data.get(ctx.arena) catch null;
             if (s_store) |store| {
                 if (store.getUser(username)) |user| {
                     if (std.mem.eql(u8, user.password, password)) {
