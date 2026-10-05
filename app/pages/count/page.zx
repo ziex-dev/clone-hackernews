@@ -1,8 +1,9 @@
 var count: u32 = 0;
-pub fn Page(ctx: zx.PageContext) zx.Component {
+pub fn Page(ctx: zx.PageContext) !zx.Component {
     count = ctx.request.cookies.as("count", u32) orelse 0;
     count += 1;
-    ctx.response.cookies.set("count", ctx.fmt("{d}", .{count}) catch unreachable, .{});
+    const count_str = try ctx.fmt("{d}", .{count});
+    ctx.response.cookies.set("count", count_str, .{});
 
     return (
         <div>
@@ -11,8 +12,4 @@ pub fn Page(ctx: zx.PageContext) zx.Component {
     );
 }
 
-const AuthState = @import("../proxy.zig").AuthState;
-const store = @import("../../data.zig");
-const std = @import("std");
 const zx = @import("zx");
-const StoryList = @import("../../components/StoryList.zx").StoryList;

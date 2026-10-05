@@ -34,7 +34,7 @@ pub fn StoryList(allocator: std.mem.Allocator, props: struct { stories: []const 
                     <tr>
                         <td colspan="2"></td>
                         <td class="subtext">
-                            <span class="score" id=`score_{item.id}`>{item.score} points</span> by <a href=`/user?id={item.author}` class="hnuser">{item.author}</a> <span class="age" title=`{item.time}`><a href=`/item/{item.id}`>{" "}{timeAgo(item.time)}</a></span> | <a href=`/hide?id={item.id}`>hide</a> | <a href=`/item/{item.id}`>{if (item.comment_count == 0) ("discuss") else (item.comment_count)} comments</a>
+                            <span class="score" id=`score_{item.id}`>{item.score} points</span> by <a href=`/user?id={item.author}` class="hnuser">{item.author}</a> <span class="age" title=`{item.time}`><a href=`/item/{item.id}`>{" "}{timeAgo(item.time)}</a></span> | <a href=`/hide?id={item.id}`> hide</a> | <a href=`/item/{item.id}`>{if (item.comment_count == 0) ("discuss") else (item.comment_count)} comments</a>
                         </td>
                     </tr>
                     <tr class="spacer" style="height:5px"></tr>

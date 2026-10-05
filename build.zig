@@ -18,10 +18,18 @@ pub fn build(b: *std.Build) !void {
 
     // --- ZX setup: wires dependencies and adds `zx`/`dev` build steps ---
     _ = try ziex.init(b, app_exe, .{
-        .cli = .{ .optimize = optimize },
         .app = .{
+            .server = .{ .backend = .std },
             .features = .{
                 .sqlite = .enabled,
+                .kv = .enabled,
+            },
+            .client = .{
+                .bindings = .{
+                    .build = .enabled,
+                    .install_subdir = "bindings",
+                },
+                .wasm = .disabled,
             },
         },
     });

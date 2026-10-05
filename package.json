@@ -6,11 +6,8 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev --live-reload"
   },
-  "dependencies": {
-    "ziex": "0.1.0-dev.1068"
-  },
   "devDependencies": {
-    "wrangler": "4.95.0",
-    "@zigc/cli": "0.16.0"
+    "wrangler": "4.147.0",
+    "@zigc/cli": "0.17.0"
   }
 }

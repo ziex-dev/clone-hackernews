@@ -2,11 +2,11 @@
     .name = .hackernews,
     .version = "0.0.0",
     .fingerprint = 0x5acb6d58a115efcf,
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .ziex = .{
-            .url = "git+https://github.com/ziex-dev/ziex#47fba110d324ed21cd8701299352b3bda320362c",
-            .hash = "ziex-0.1.0-dev-Z3YcverCngH0wFQEtc6mwQtSzbUiEzqilWlQqpOTYtKa",
+            .url = "git+https://github.com/ziex-dev/ziex#2806404ce6c4e953e1a039d7521be928e1337cd3",
+            .hash = "ziex-0.1.0-dev-Z3YcvU0ZnAF7FhTmc5i7e3Lio2Vq9tGWvIbuAI9jHBiT",
         },
     },
     .paths = .{

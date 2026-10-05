@@ -51,8 +51,8 @@ pub fn Page(ctx: zx.PageContext, _: void, auth: AuthState) !zx.Component {
                                 {" "}{timeAgo(item.time)}
                             </a>
                         </span> | 
-                        <a href=`/hide?id={item.id}`>hide</a> | 
-                        <a href=`/item/{item.id}`>{if (item.comment_count == 0) ("discuss") else (item.comment_count)} comments</a>
+                        <a href=`/hide?id={item.id}`> hide</a> | 
+                        <a href=`/item/{item.id}`> {if (item.comment_count == 0) ("discuss") else (item.comment_count)} comments</a>
                     </td>
                 </tr>
                 <tr style="height:10px"></tr>
@@ -151,9 +151,7 @@ pub fn CommentComponent(allocator: std.mem.Allocator, props: struct { comment: s
                                     <span class="comhead">
                                         <a href=`/user?id={props.comment.author}` class="hnuser">{props.comment.author}</a> 
                                         <span class="age" title=`{props.comment.time}`><a href=`/item?id={props.comment.id}`>{" "}{timeAgo(props.comment.time)}</a></span>
-                                        <span class="navs">
-                                            [-]
-                                        </span>
+                                        <span class="navs"> [-]</span>
                                     </span>
                                 </div>
 

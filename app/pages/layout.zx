@@ -26,12 +26,12 @@ pub fn Layout(ctx: zx.LayoutContext, children: zx.Component, _: void, auth: Auth
                                             <span class="pagetop">
                                                    <b class="hnname"><a href="/">Hacker News</a></b>
                                                    <a href="/new" class={getactive(path, "/new")}>new</a> | 
-                                                   <a href="/past" class={getactive(path, "/past")}>past</a> | 
-                                                   <a href="/comments" class={getactive(path, "/comments")}>comments</a> | 
-                                                   <a href="/ask" class={getactive(path, "/ask")}>ask</a> | 
-                                                   <a href="/show" class={getactive(path, "/show")}>show</a> | 
-                                                   <a href="/jobs" class={getactive(path, "/jobs")}>jobs</a> | 
-                                                   <a href="/submit" class={getactive(path, "/submit")}>submit</a>
+                                                   <a href="/past" class={getactive(path, "/past")}> past</a> | 
+                                                   <a href="/comments" class={getactive(path, "/comments")}> comments</a> | 
+                                                   <a href="/ask" class={getactive(path, "/ask")}> ask</a> | 
+                                                   <a href="/show" class={getactive(path, "/show")}> show</a> | 
+                                                   <a href="/jobs" class={getactive(path, "/jobs")}> jobs</a> | 
+                                                   <a href="/submit" class={getactive(path, "/submit")}> submit</a>
                                             </span>
                                         </td>
                                         <td style="text-align:right;padding-right:4px;">
@@ -63,13 +63,13 @@ pub fn Layout(ctx: zx.LayoutContext, children: zx.Component, _: void, auth: Auth
                                 <center>
                                     <span class="yclinks">
                                         <a href="/guidelines">Guidelines</a> | 
-                                        <a href="/faq">FAQ</a> | 
-                                        <a href="/lists">Lists</a> | 
-                                        <a href="/api">API</a> | 
-                                        <a href="/security">Security</a> | 
-                                        <a href="/legal">Legal</a> | 
-                                        <a href="/apply">Apply to YC</a> | 
-                                        <a href="/contact">Contact</a>
+                                        <a href="/faq"> FAQ</a> | 
+                                        <a href="/lists"> Lists</a> | 
+                                        <a href="/api"> API</a> | 
+                                        <a href="/security"> Security</a> | 
+                                        <a href="/legal"> Legal</a> | 
+                                        <a href="/apply"> Apply to YC</a> | 
+                                        <a href="/contact"> Contact</a>
                                     </span>
                                     <br />
                                     <br />
